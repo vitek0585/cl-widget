@@ -141,7 +141,6 @@
                 function bodyWrap(tElement) {
                     $(tElement).find('[cl-body]')
                         .wrapInner('<span ng-repeat="item in ' + keyData + '"ng-click="select(item,$event)" class="cl-row" ng-class-odd="\'cl-row-odd\'"></span>');
-
                 }
 
             },
@@ -153,7 +152,6 @@
             if (angular.isDefined($attrs.multiselect)) {
                 isMultiselect = true;
             }
-
             var selectedItem;
             var currentElement;
             var selectedItems = [];
