@@ -9,7 +9,9 @@
     transition: all .3s;
     padding: 1% 0;
 }
-
+.active {
+    
+}
     .cl-row:after {
         content: ' ';
         display: table;
