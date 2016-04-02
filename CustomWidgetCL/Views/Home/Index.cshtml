@@ -1,0 +1,32 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<script src="~/Scripts/angular.js"></script>
+<script src="~/Scripts/module/grid-credo-lab.js"></script>
+<script src="~/Scripts/module/app-module.js"></script>
+
+
+<div ng-app="app" ng-controller="ctrl">
+    <div cl-grid data="data" class="row" id="name1">
+        <div cl-body>
+            <div class="col-md-6">{{item.id}}</div>
+            <div class="col-md-6">{{item.name}}</div>
+        </div>
+    </div>
+
+    <div cl-grid data="data1" class="row" id="name2">
+        <div cl-body>
+            <div class="col-md-6">{{item.id}}</div>
+            <div class="col-md-6">{{item.name}}</div>
+        </div>
+    </div>
+
+    <div>Grid -1 = {{selctedItem1.name}}</div>
+    <div>Grid -2 = {{selctedItem2.name}}</div>
+
+    @*<div ng-repeat="item in selctedItems">
+            <div class="col-md-6">{{item.id}}</div>
+        </div>*@
+    <button ng-click="get()">get all</button>
+</div>
