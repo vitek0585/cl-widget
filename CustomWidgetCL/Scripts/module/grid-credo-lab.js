@@ -30,93 +30,40 @@
 
 (function () {
     'use strict';
-
     var app = angular.module('gridCredoLab', []);
-
+   
     //-----------------------------------Container for grids--------------------
     app.factory('clGridContainer', clGridContainer);
 
     function clGridContainer() {
-        var selectedItems;
-
+        var clGrids = {};
+        var key = 'global';
         return {
 
-            removeSelectItem: removeSelectItem,
-            addSelectedItem: addSelectedItem,
-
-            clGridSelectedItem: clGridSelectedItem,
+            registerClGrid: registerClGrid,
             clGridSelectedItems: clGridSelectedItems
         };
 
-        function clGridSelectedItem(idGrid) {
-            if (!angular.isDefined(selectedItems))
-                return undefined;
-
-            if (angular.isDefined(idGrid)) {
-                return selectedItems[idGrid][0];
-            }
-
-            return selectedItems[0];
-        }
         function clGridSelectedItems(idGrid) {
-            if (!angular.isDefined(selectedItems))
-                return undefined;
+
+            if (angular.isDefined(idGrid) && angular.isDefined(clGrids[idGrid])) {
+                return clGrids[idGrid]();
+            }
+            if (angular.isDefined(clGrids[key]))
+                return clGrids[key]();
+
+            return undefined;
+        }
+
+        function registerClGrid(idGrid,func) {
 
             if (angular.isDefined(idGrid)) {
-                return selectedItems[idGrid];
-            }
-
-            return selectedItems;
-        }
-        function addSelectedItem(item, idGrid) {
-
-            init(idGrid);
-            if (angular.isDefined(idGrid)) {
-
-                if (!angular.isDefined(selectedItems[idGrid])) {
-                    selectedItems[idGrid] = [];
-                    selectedItems[idGrid].push(item);
-
-                    console.log(selectedItems);
-
-                    return;
-                }
-                selectedItems[idGrid].push(item);
-                console.log(selectedItems);
+                clGrids[idGrid] = func;
                 return;
             }
-
-            selectedItems.push(item);
+            clGrids[key] = func;
         }
 
-        function init(key) {
-            if (!angular.isDefined(selectedItems) && angular.isDefined(key)) {
-                selectedItems = {};
-            }
-            if (!angular.isDefined(selectedItems) && !angular.isDefined(key)) {
-                selectedItems = [];
-            }
-        }
-        function removeSelectItem(item, idGrid) {
-            if (angular.isDefined(idGrid) && angular.isDefined(selectedItems[idGrid])) {
-                removeItemFromArray(selectedItems[idGrid], item);
-                return;
-            }
-            removeItemFromArray(selectedItems, item);
-        }
-
-        function removeItemFromArray(array, item) {
-            var index;
-            array.forEach(function (e, i) {
-                if (e === item) {
-                    index = i;
-                }
-            });
-
-            if (angular.isDefined(index)) {
-                array.splice(index, 1);
-            }
-        }
     }
     //-----------------------------------Grid directive-------------------------
     app.directive('clGrid', gridExecute);
@@ -126,20 +73,19 @@
         var classSelected = 'cl-row-selected';
         return {
             restrict: 'EA',
+            scope:true,
             compile: function (tElement, tAttrs, tTransclude) {
                 var keyData = tAttrs['data'];
-
                 if (angular.isDefined(tAttrs.gridTemplate)) {
                     tElement = document.getElementById(tAttrs.gridTemplate);
                 }
                 bodyWrap(tElement);
                 return {
                     pre: function preLink(scope, iElement, iAttrs) {
-
-                    },
+                        scope.keyData = keyData;
+                    }
                 }
                 function bodyWrap(tElement) {
-                    console.log('as');
                     $(tElement).find('[cl-body]')
                         .wrapInner('<span ng-repeat="item in ' + keyData + '"ng-click="select(item,$event)" class="cl-row" ng-class-odd="\'cl-row-odd\'"></span>');
                 }
@@ -148,37 +94,41 @@
             controller: ['$scope', '$element', '$attrs', gridCtrl]
         }
         function gridCtrl($scope, $element, $attrs) {
+            console.log($scope);
             var idGrid = $attrs['id'];
             var isMultiselect = false;
+
+            var selectedItem;
+            var currentElement;
+
+            var selectedItems = [];
+            var currentElements = [];
+
             if (angular.isDefined($attrs.multiselect)) {
                 isMultiselect = true;
             }
-            var selectedItem;
-            var currentElement;
-            var selectedItems = [];
-            var currentElements = [];
-          
             $scope.select = function (item, event) {
                 var element = $(event.currentTarget);
-                console.log($(element).closest('[cl-grid]'));
                 if (isMultiselect) {
-                    gridContainer.removeSelectItem(item, idGrid);
-                    gridContainer.addSelectedItem(item, idGrid);
-
-                    //handleMultiselectSelect(element, item);
+                    handleMultiselectSelect(element, item);
                 } else {
                     handleSelect(element, item);
                 }
             };
-
+            if (isMultiselect) {
+                gridContainer.registerClGrid(idGrid, function () {
+                    return selectedItems;
+                });
+            } else {
+                gridContainer.registerClGrid(idGrid, function () {
+                    return selectedItem;
+                });
+            }
             function handleSelect(element, item) {
                 if (angular.isDefined(currentElement)) {
                     currentElement.removeClass(classSelected);
-                    gridContainer.removeSelectItem(selectedItem, idGrid);
                 }
-                //add to container grid
                 selectedItem = item;
-                gridContainer.addSelectedItem(item, idGrid);
                 currentElement = element;
                 currentElement.addClass(classSelected);
                 $rootScope.$broadcast('select', { data: item });
@@ -200,6 +150,7 @@
                     selectedItems.push(item);
                 }
             }
+            
         }
     }
     //----------------------Header directive--------------------------
