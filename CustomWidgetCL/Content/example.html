@@ -1,10 +1,4 @@
-﻿@{
-    ViewBag.Title = "Home Page";
-}
-<link href="~/Content/cr-lab-grid.css" rel="stylesheet" />
-<script src="~/Scripts/angular.js"></script>
-<script src="~/Scripts/module/cr-lab-grid.js"></script>
-<script type="text/javascript">
+﻿<script type="text/javascript">
     (function () {
         'use strict';
         var app = angular.module('app', ['gridCredoLab']);
@@ -70,4 +64,3 @@
         <div class="col-md-6" ng-style="index==item.name?{'color':'blue'}:{}">{{item.name}} - {{index}}</div>
     </div>
 </script>
-

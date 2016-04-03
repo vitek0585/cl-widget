@@ -1,11 +1,13 @@
-﻿/// <reference path="~/Scripts/angular.js" />
+﻿//inject in your angular module - ['gridCredoLab']
 
 // summary
 //-----------------------------------Grid directive-------------------------
 //attributes
 //cl-grid - apply for element which will be Grid 
+//id - identify grid. This need that get selected item or items late (NOTE: if you have more than one grid at the page)
 //data - take data for grid
 //multiselect - select for more than one row
+//grid-template="ID_TEMPLATE" - take content from element by id (example: <script type="text/ng-template" id="templ">YOUR_CONTENT</script>)
 //classes
 //.cl-row - for ever row
 //.cl-row-odd - for odd row
@@ -24,14 +26,13 @@
 //.sortable - how will be shown a caption that can use sort
 
 //---------------------in controller------------------------
-//$scope.clGridSelectedItems - get several selected items (if exists attribute 'multiselect') 
-//$scope.clGridSelectedItem - get one selected item
-
-
+//inject in controller 'clGridContainer' and then get items through function - clGridContainer.clGridSelectedItems('name1');
+//This function has one optional parameter. He is identify grid at html page (NOTE: if you have more than one grid at the page)
+//Function clGridSelectedItems return one or several items (NOTE:dependence from attribute 'multiselect' if him exists) 
 (function () {
     'use strict';
     var app = angular.module('gridCredoLab', []);
-   
+
     //-----------------------------------Container for grids--------------------
     app.factory('clGridContainer', clGridContainer);
 
@@ -45,17 +46,29 @@
         };
 
         function clGridSelectedItems(idGrid) {
-
+            var itemsDto = [];
+            var data;
             if (angular.isDefined(idGrid) && angular.isDefined(clGrids[idGrid])) {
-                return clGrids[idGrid]();
+                data = clGrids[idGrid]();
+                return getData(data, itemsDto);
             }
-            if (angular.isDefined(clGrids[key]))
-                return clGrids[key]();
+            if (angular.isDefined(clGrids[key])) {
+                data = clGrids[key]();
+                return getData(data, itemsDto);
+            }
 
             return undefined;
         }
-
-        function registerClGrid(idGrid,func) {
+        function getData(source, dest) {
+            if (angular.isArray(source)) {
+                source.forEach(function (e) {
+                    dest.push(e);
+                });
+                return dest;
+            }
+            return source;
+        }
+        function registerClGrid(idGrid, func) {
 
             if (angular.isDefined(idGrid)) {
                 clGrids[idGrid] = func;
@@ -72,12 +85,12 @@
     function gridExecute($compile, $rootScope, gridContainer) {
         var classSelected = 'cl-row-selected';
         return {
-            restrict: 'EA',
-            scope:true,
+            restrict: 'A',
+            scope: true,
             compile: function (tElement, tAttrs, tTransclude) {
                 var keyData = tAttrs['data'];
                 if (angular.isDefined(tAttrs.gridTemplate)) {
-                    tElement = document.getElementById(tAttrs.gridTemplate);
+                    tElement.append($(document.getElementById(tAttrs.gridTemplate))[0].innerHTML);
                 }
                 bodyWrap(tElement);
                 return {
@@ -94,10 +107,9 @@
             controller: ['$scope', '$element', '$attrs', gridCtrl]
         }
         function gridCtrl($scope, $element, $attrs) {
-            console.log($scope);
             var idGrid = $attrs['id'];
             var isMultiselect = false;
-
+            $scope.idGrid = idGrid;
             var selectedItem;
             var currentElement;
 
@@ -150,24 +162,21 @@
                     selectedItems.push(item);
                 }
             }
-            
+
         }
     }
     //----------------------Header directive--------------------------
     app.directive('clHeader', headerExecute);
     function headerExecute($filter, $timeout) {
-        var local;
-        var sortAction;
+        
         return {
             require: '^clGrid',
-            restrict: "EA",
-            link: function (scope, element, attr) {
-                local = attr.local;
-                sortAction = attr.sortAction;
-            },
-            controller: function ($scope) {
-
-                $scope.$on('cl-sort', function (event, args) {
+            restrict: "A",
+            
+            controller: function ($scope,$element,$attrs) {
+                var local = $attrs.local;
+                var sortAction = $attrs.sortAction;
+                $scope.$on('cl-sort' + $scope.idGrid, function (event, args) {
 
                     if (!angular.isDefined(local) || angular.isDefined(local) && JSON.parse(local) === true) {
 
@@ -178,12 +187,13 @@
                     }
                     if (angular.isDefined(local) && JSON.parse(local) === false && angular.isDefined(sortAction)) {
 
-                        $timeout(function () {
-                            $scope[sortAction](args.field);
-                        }, 0, true);
+                        $timeout(function() {
+                                $scope[sortAction](args.field);
+                            },0,true);
                         return;
                     }
                     throw Error('If you set attribute "local" to value true, maybe you missed attribute "sort-action" in the cl-header directive');
+                  
                 });
 
             }
@@ -197,11 +207,9 @@
 
         return {
             require: '^clGrid',
-            restrict: "EA",
-
+            restrict: "A",
             controller: function ($scope, $element, $attrs) {
                 var reverse = false;
-
                 if (angular.isDefined($attrs.sortable)) {
                     var sortBtn = angular.element('<i class="glyphicon glyphicon-chevron-down sort-btn"></i>');
                     $($element).addClass('sortable');
@@ -221,7 +229,7 @@
                             $(sortBtn).removeClass('reflect-btn');
                         }
                         reverse = !reverse;
-                        $rootScope.$broadcast('cl-sort', { field: aggregate });
+                        $rootScope.$broadcast('cl-sort' + $scope.idGrid, { field: aggregate });
                     });
                     $element.append(sortBtn);
                 }
