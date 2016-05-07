@@ -1,7 +1,32 @@
 ﻿@{
     ViewBag.Title = "Home Page";
 }
+<style type="text/css">
+    .my-popover {
+        background: burlywood;
+        position: absolute;
+        width: 100px;
+    }
+
+    .animate-hide {
+        display: block !important;
+        -moz-transition: all 0.5s;
+        -o-transition: all 0.5s;
+        -webkit-transition: all 0.5s;
+        transition: all 0.5s;
+        opacity: 1;
+        height: 100px;
+    }
+
+
+        .animate-hide.ng-hide {
+            opacity: 0;
+            display: block !important;
+            height: 0;
+        }
+</style>
 <link href="~/Content/cr-lab-grid.css" rel="stylesheet" />
+<link href="~/fonts/ionicons.css" rel="stylesheet" />
 <script src="~/Scripts/angular.js"></script>
 <script src="~/Scripts/module/cr-lab-grid.js"></script>
 <script type="text/javascript">
@@ -13,8 +38,21 @@
         global.$inject = ['$scope', 'clGridContainer'];
 
         function global(scope, clGridContainer) {
+            var id = 1;
+            scope.one = '';
+            scope.two = '';
+            scope.$watchGroup([function () {
+                return scope.one;
+            }, function () {
+                return scope.two;
+            }],
+                function (newV) {
+                    console.log(newV[0]);
+                });
 
-            scope.data = [{ id: 1, name: 'vitek' }, { id: 2, name: 'kristina' }, { id: 3, name: 'alex' }, { id: 4, name: 'anna' }];
+            scope.first = {};
+            scope.first.array = {};
+            scope.first.array.data = [{ id: 1, name: 'vitek' }, { id: 2, name: 'kristina' }, { id: 3, name: 'alex' }, { id: 4, name: 'anna' }];
             scope.data1 = [{ id: 10, name: 'marya' }, { id: 20, name: 'alena' }, { id: 30, name: 'dima' }, { id: 40, name: 'serg' }];
 
             scope.index = 'alex';
@@ -23,17 +61,70 @@
                 scope.selctedItem2 = clGridContainer.clGridSelectedItems('name2');
             }
             scope.sort = function (a) {
-                console.log('sort by field = '+a);
+                console.log('sort by field = ' + a);
+            }
+            scope.add = function () {
+                scope.first.array.data.push({ id: id++, name: 'vitek' });
             }
         }
 
+        app.directive('popover', popover);
+
+        function popover() {
+            return {
+                restrict: 'A',
+                compile: function (tElement, tAttrs, tTransclude) {
+                    var left = $(tElement).position().left;
+                    var top = $(tElement).offset().top;
+                    console.log($(tElement).position());
+                    console.log($(tElement).offset());
+                    var div = $('<div ng-show="popover" >');
+                    div.addClass('my-popover animate-hide');
+                    div.css({ 'top': $(tElement).position().top + $(tElement).outerHeight(), 'left': left });
+
+                    $(tElement).parent().append(div);
+                    $('.my-popover').click(function (event) {
+                        event.stopPropagation();
+                    });
+                    return {
+                        pre: function (scope, elem, attr) {
+                            $('html').click(function () {
+                                scope.popover = false;
+                                scope.$apply();
+                            });
+
+                            $(elem).click(function () {
+                                scope.popover = !scope.popover;
+                                scope.$apply();
+                                event.stopPropagation();
+                            });
+
+                        }
+                    }
+
+                }
+            }
+        }
     })();
 </script>
 
 <div ng-app="app" ng-controller="global">
 
-    <div cl-grid data="data" class="row" id="name1" multiselect>
-        <div cl-header>
+    <div>
+        <i style="font-size: 25px" class="ionicons ion-ios-arrow-down"></i>
+    </div>
+    <div style="position:relative">
+        <span>sdfsdfsdfsdfsdfsdfsdf</span>  <input type="text" ng-model="one" popover class="form-control" />
+        <div> <input type="text" /></div>
+        <div> <input type="text" /></div>
+    </div>
+    <div>
+        <button ng-click="add()">add</button>
+    </div>
+
+    <div cl-grid data="first.array.data" class="row" id="name1" multiselect hide-without-elems>
+        <div show-without-elems class="text-center">Table is empty</div>
+        <div cl-header hide-without-elems>
             <div cl-caption sortable field="id" class="col-md-6">Id</div>
             <div cl-caption sortable field="name" class="col-md-6">Name</div>
         </div>
@@ -41,8 +132,12 @@
             <div>{{header}}</div>
             <div class="col-md-6">{{item.id}}</div>
             <!--Your build logic-->
-            <div class="col-md-6" ng-style="index==item.name?{'color':'blue'}:{}">{{item.name}} - {{index}}</div>
+            <div class="col-md-6" ng-style="index==item.name?{'color':'blue'}:{}">
+                {{item.name}} - {{index}}
+                <i style="font-size: 25px" class="ion-ios-close-empty pull-right" selected></i>
+            </div>
         </div>
+
     </div>
 
     <div cl-grid data="data1" class="row" id="name2" grid-template="templ"></div>

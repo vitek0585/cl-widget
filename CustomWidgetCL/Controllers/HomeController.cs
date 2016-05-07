@@ -13,10 +13,8 @@ namespace CustomWidgetCL.Controllers
             return View();
         }
 
-        public ActionResult About()
+        public ActionResult FilterGrid()
         {
-            ViewBag.Message = "Your application description page.";
-
             return View();
         }
 

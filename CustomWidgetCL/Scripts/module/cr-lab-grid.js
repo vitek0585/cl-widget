@@ -24,18 +24,29 @@
 //classes
 //.sort-btn - icon for sort
 //.sortable - how will be shown a caption that can use sort
+//----------------------For current element directive cl-Element-------------------------
+//selected - if item has selected then this element will be show on html page (NOTE: attribute is use into cl-body)
+//------------------------Other attributes
+//hide-without-elems - hide element if data for grid is not contains any elements
+//show-without-elems - show element if data for grid is not contains any elements
+//_________________________________________________________________________________________________________________
+
 
 //---------------------in controller------------------------
 //inject in controller 'clGridContainer' and then get items through function - clGridContainer.clGridSelectedItems('name1');
 //This function has one optional parameter. He is identify grid at html page (NOTE: if you have more than one grid at the page)
 //Function clGridSelectedItems return one or several items (NOTE:dependence from attribute 'multiselect' if him exists) 
+
+
 (function () {
     'use strict';
     var app = angular.module('gridCredoLab', []);
-
-    //-----------------------------------Container for grids--------------------
+    app.constant('clConfig',
+    {
+        selectedClass: 'cl-row-selected'
+    });
+    //-----------------------------------Container for all grids on the page------
     app.factory('clGridContainer', clGridContainer);
-
     function clGridContainer() {
         var clGrids = {};
         var key = 'global';
@@ -80,27 +91,37 @@
     }
     //-----------------------------------Grid directive-------------------------
     app.directive('clGrid', gridExecute);
+    gridExecute.$inject = ['$compile', '$rootScope', 'clGridContainer', 'clConfig'];
+    function gridExecute($compile, $rootScope, gridContainer, clConfig) {
 
-    gridExecute.$inject = ['$compile', '$rootScope', 'clGridContainer'];
-    function gridExecute($compile, $rootScope, gridContainer) {
-        var classSelected = 'cl-row-selected';
         return {
             restrict: 'A',
             scope: true,
             compile: function (tElement, tAttrs, tTransclude) {
                 var keyData = tAttrs['data'];
+
                 if (angular.isDefined(tAttrs.gridTemplate)) {
                     tElement.append($(document.getElementById(tAttrs.gridTemplate))[0].innerHTML);
                 }
+
                 bodyWrap(tElement);
+                setFeatureShowGrid(tElement, true);
+
                 return {
                     pre: function preLink(scope, iElement, iAttrs) {
                         scope.keyData = keyData;
-                    }
+
+                    },
+
                 }
                 function bodyWrap(tElement) {
                     $(tElement).find('[cl-body]')
-                        .wrapInner('<span ng-repeat="item in ' + keyData + '"ng-click="select(item,$event)" class="cl-row" ng-class-odd="\'cl-row-odd\'"></span>');
+                        .wrapInner('<span cl-element ng-repeat="item in ' + keyData + '"ng-click="select(item,$event)" class="cl-row" ng-class-odd="\'cl-row-odd\'"></span>');
+                }
+
+                function setFeatureShowGrid(tElement) {
+                    $(tElement).find('[hide-without-elems]').attr('ng-show', keyData + '[0]');
+                    $(tElement).find('[show-without-elems]').attr('ng-show', '!' + keyData + '[0]');
                 }
 
             },
@@ -138,11 +159,11 @@
             }
             function handleSelect(element, item) {
                 if (angular.isDefined(currentElement)) {
-                    currentElement.removeClass(classSelected);
+                    currentElement.removeClass(clConfig.selectedClass);
                 }
                 selectedItem = item;
                 currentElement = element;
-                currentElement.addClass(classSelected);
+                currentElement.addClass(clConfig.selectedClass);
                 $rootScope.$broadcast('select', { data: item });
             }
             function handleMultiselectSelect(element, item) {
@@ -153,11 +174,11 @@
                     }
                 });
                 if (angular.isDefined(index)) {
-                    currentElements[index].removeClass(classSelected);
+                    currentElements[index].removeClass(clConfig.selectedClass);
                     currentElements.splice(index, 1);
                     selectedItems.splice(index, 1);
                 } else {
-                    element.addClass(classSelected);
+                    element.addClass(clConfig.selectedClass);
                     currentElements.push(element);
                     selectedItems.push(item);
                 }
@@ -167,33 +188,39 @@
     }
     //----------------------Header directive--------------------------
     app.directive('clHeader', headerExecute);
-    function headerExecute($filter, $timeout) {
-        
+    headerExecute.$inject = ['$filter'];
+    function headerExecute($filter) {
+
         return {
             require: '^clGrid',
             restrict: "A",
-            
-            controller: function ($scope,$element,$attrs) {
+
+            controller: function ($scope, $element, $attrs) {
                 var local = $attrs.local;
                 var sortAction = $attrs.sortAction;
                 $scope.$on('cl-sort' + $scope.idGrid, function (event, args) {
 
                     if (!angular.isDefined(local) || angular.isDefined(local) && JSON.parse(local) === true) {
+                        var path = $scope.keyData.split('.');
+                        var data = $scope[path[0]];
+                        for (var i = 1; i < path.length; i++) {
+                            data = data[path[i]];
+                        }
+                        if (data !== undefined) {
+                            var newData = $filter('orderBy')(data, args.field);
+                            Array.prototype.splice.apply(data, [0, newData.length].concat(newData));
+                        }
+                        $scope.$apply();
 
-                        $timeout(function () {
-                            $scope[$scope.keyData] = $filter('orderBy')($scope[$scope.keyData], args.field);
-                        }, 0, true);
                         return;
                     }
                     if (angular.isDefined(local) && JSON.parse(local) === false && angular.isDefined(sortAction)) {
-
-                        $timeout(function() {
-                                $scope[sortAction](args.field);
-                            },0,true);
+                        $scope[sortAction](args.field);
+                        $scope.$apply();
                         return;
                     }
                     throw Error('If you set attribute "local" to value true, maybe you missed attribute "sort-action" in the cl-header directive');
-                  
+
                 });
 
             }
@@ -202,8 +229,8 @@
     }
     //----------------------Caption directive-------------------------
     app.directive('clCaption', captionExecute);
+    captionExecute.$inject = ['$rootScope'];
     function captionExecute($rootScope) {
-
 
         return {
             require: '^clGrid',
@@ -211,7 +238,7 @@
             controller: function ($scope, $element, $attrs) {
                 var reverse = false;
                 if (angular.isDefined($attrs.sortable)) {
-                    var sortBtn = angular.element('<i class="glyphicon glyphicon-chevron-down sort-btn"></i>');
+                    var sortBtn = angular.element('<i class="ion-ios-arrow-down sort-btn"></i>');
                     $($element).addClass('sortable');
                     $element.on('click', function (event) {
                         if (!angular.isDefined($attrs.field)) {
@@ -237,5 +264,27 @@
             }
         }
     }
+    //----------------------Row directive
+    app.directive('clElement', elementExecute);
+    elementExecute.$inject = ['clConfig'];
+    function elementExecute(clConfig) {
+        return {
+            require: '^clGrid',
+            restrict: 'A',
+            controller: function ($scope, $element, $attrs) {
+                
+                $scope.$watch(function () {
+                    return $element.attr('class');
+                }, function (newValue) {
 
+                    if (newValue.indexOf(clConfig.selectedClass) > 0) {
+                        $($element).find('[selected]').show();
+                    }
+                    else {
+                        $($element).find('[selected]').hide();
+                    }
+                });
+            }
+        }
+    }
 })();

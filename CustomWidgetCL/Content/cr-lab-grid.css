@@ -1,7 +1,6 @@
 ﻿/*for custom data-grid*/
 .cl-row {
     display: block;
-    padding: 5px 0;
     -webkit-transition: all .3s;
     -moz-transition: all .3s;
     -ms-transition: all .3s;
@@ -9,14 +8,16 @@
     transition: all .3s;
     padding: 1% 0;
 }
-.active {
-    
+
+[cl-grid] {
+    min-width: 550px;
 }
-    .cl-row:after {
-        content: ' ';
-        display: table;
-        clear: both;
-    }
+
+.cl-row:after {
+    content: ' ';
+    display: table;
+    clear: both;
+}
 
 .cl-row-odd {
     background: rgba(234, 234, 234, 0.28);
@@ -27,14 +28,8 @@
     cursor: pointer;
 }
 
-.cl-row-selected div {
-    font-weight: bold;
-}
 
-[cl-body] * {
-    -ms-word-wrap: break-word;
-    word-wrap: break-word;
-}
+
 
 *[cl-header] {
     position: relative;
@@ -43,7 +38,8 @@
 
 .sort-btn {
     position: absolute;
-    top: 8px;
+    font-size: 18px;
+    top: 3px;
     right: 3px;
     -webkit-transform: scale(1);
     -moz-transform: scale(1);
@@ -68,7 +64,7 @@
 
 
 .sortable {
-      cursor: pointer;
+    cursor: pointer;
     -webkit-transition: background .4s;
     -moz-transition: background .4s;
     -ms-transition: background .4s;
@@ -76,31 +72,310 @@
     transition: background .4s;
 }
 
-.sortable:hover {
-    
-     background: rgba(234, 234, 234, 0.28);
-
-    
-}
-    *[cl-header]::after {
-        content: ' ';
-        display: table;
-        clear: both;
+    .sortable:hover {
+        background: rgba(234, 234, 234, 0.28);
     }
+
+*[cl-header]::after {
+    content: ' ';
+    display: table;
+    clear: both;
+}
 
 .header {
     height: 80px;
     width: 100%;
 }
-*[cl-grid] {
-    margin-top: 100px;
-}
+/*custom*/
 [cl-header] > div {
     padding: 5px;
-    height: 30px;
     font-size: 14px;
     text-align: center;
     text-transform: uppercase;
     -ms-word-wrap: break-word;
     word-wrap: break-word;
+}
+
+
+[cl-body] * {
+    -ms-word-wrap: break-word;
+    word-wrap: break-word;
+}
+
+[cl-header] > div:not(:nth-last-child(-1n+1)) {
+    border-right: 1px gray solid;
+}
+
+.scale-icon {
+    -webkit-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -ms-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+}
+
+.active-color {
+    color: green;
+    -ms-opacity: .5;
+    opacity: .5;
+}
+
+.noactive-color {
+    color: tomato;
+    -ms-opacity: .5;
+    opacity: .5;
+}
+
+
+.edit-row {
+    color: #4384d0;
+    font-size: 30px;
+    line-height: 0;
+    vertical-align: middle;
+    -webkit-transition: font-size .3s;
+    -moz-transition: font-size .3s;
+    -ms-transition: font-size .3s;
+    -o-transition: font-size .3s;
+    transition: font-size .3s;
+}
+
+    .edit-row:hover {
+        color: rgb(39, 101, 174);
+    }
+
+.remove-row {
+    color: #BF6D6D;
+    font-size: 30px;
+    line-height: 0;
+    vertical-align: middle;
+    -webkit-transition: font-size .3s;
+    -moz-transition: font-size .3s;
+    -ms-transition: font-size .3s;
+    -o-transition: font-size .3s;
+    transition: font-size .3s;
+}
+
+    .remove-row:hover {
+        color: rgb(185, 67, 67);
+    }
+
+
+
+.cl-row-selected div {
+    /*color: white;*/
+    font-weight: bold;
+}
+
+[cl-header].row {
+    margin-right: 0;
+    margin-left: 0;
+    width: 100%;
+    display: table;
+}
+
+[cl-caption] {
+    float: none;
+    display: table-cell;
+    height: 100%;
+    vertical-align: middle;
+}
+/*Filters*/
+
+[cl-filter] .distance-top {
+    margin-top: 2px;
+}
+
+[cl-filter] [uib-dropdown-toggle] {
+    width: 100%;
+}
+
+[cl-filter] [uib-dropdown-menu] p {
+    text-align: left;
+    padding: 10px 3px;
+    margin: 0;
+}
+[cl-filter] [uib-dropdown-menu] p:hover {
+    background: #f9f9f9;
+}
+[cl-filter] .uib-monthpicker button, [cl-filter] .uib-yearpicker button, [cl-filter] .uib-daypicker button, [cl-filter] .uib-weeks em {
+    line-height: 0.5;
+    padding: 8px 5px;
+    border: none;
+    font-size: 10px;
+    -webkit-box-shadow: none;
+}
+
+    [cl-filter] .uib-monthpicker button:hover, [cl-filter] .uib-yearpicker button:hover, [cl-filter] .uib-daypicker button:hover {
+        color: #333;
+        background-color: #F9F9F9;
+        border-color: transparent;
+    }
+
+[cl-filter] .btn:focus, [cl-filter] .btn:active:focus, [cl-filter] .btn-default:active:focus, [cl-filter] .btn:focus, [cl-filter] .btn-default.active {
+    outline: none;
+    background-color: #f9f9f9;
+}
+
+[cl-filter] .text-info {
+    color: #333;
+}
+
+[cl-filter] .btn:active {
+    background-image: none;
+    outline: 0;
+}
+
+[cl-filter] [aria-label] {
+    font-size: 60%;
+}
+
+[cl-filter] .uib-weeks .h6 {
+    font-family: inherit;
+    font-weight: 600;
+    line-height: 0;
+    color: inherit;
+}
+
+[cl-filter] .btn-info:active, [cl-filter] .btn-info.active, .btn-info {
+    color: #333;
+    background-color: #f9f9f9;
+}
+
+    [cl-filter] .btn-info:active:hover {
+        color: #333;
+        background-color: #f9f9f9;
+        border-color: transparent;
+    }
+
+[cl-filter] .uib-daypicker button:active {
+    outline: none;
+}
+
+[cl-filter] .uib-daypicker:focus {
+    outline: none;
+}
+
+[cl-filter] .form-control {
+    font-size: 12px;
+    height: 30px;
+}
+
+[cl-filter] * {
+    border-radius: 0;
+}
+
+[cl-filter] .uib-monthpicker th button:hover, [cl-filter] .uib-yearpicker th button:hover, [cl-filter] .uib-daypicker th button:hover {
+    background: transparent;
+}
+
+[cl-filter] .btn-group.dropdown {
+    width: 100%;
+}
+
+[cl-filter] .float-right {
+    float: right;
+}
+
+[cl-filter] [uib-dropdown] {
+    font-size: 11px;
+}
+
+    [cl-filter] [uib-dropdown] .btn {
+        padding: 6px 8px;
+        font-size: 11px;
+        text-transform: capitalize;
+    }
+
+    [cl-filter] [uib-dropdown] .btn-default:hover, [cl-filter] .open > .dropdown-toggle.btn-default {
+        background-color: #f9f9f9;
+    }
+
+    [cl-filter] [uib-dropdown] button {
+        text-align: left;
+    }
+
+[cl-filter] [uib-dropdown-menu] {
+    font-size: 11px;
+    text-transform: capitalize;
+}
+
+[cl-filter] .filter-container {
+    margin-left: 5px;
+}
+
+[cl-filter] .button-filter {
+    padding: 5px 5px;
+    font-size: 11px;
+    line-height: 1;
+    border-radius: 0;
+    width: 50%;
+    border: none;
+}
+
+@media only screen and (max-width: 995px) {
+
+    [cl-header] > div {
+        padding: 0;
+        padding-right: 7px;
+        font-size: 11px;
+        text-transform: uppercase;
+        -ms-word-wrap: break-word;
+        word-wrap: break-word;
+    }
+
+    [cl-body] {
+        font-size: 12px;
+    }
+
+    .scale-icon {
+        -webkit-transform: scale(1);
+        -moz-transform: scale(1);
+        -ms-transform: scale(1);
+        -o-transform: scale(1);
+        transform: scale(1);
+    }
+
+    .sort-btn {
+        position: absolute;
+        font-size: 10px;
+        top: 0;
+        right: 1px;
+        -webkit-transform: scale(1);
+        -moz-transform: scale(1);
+        -ms-transform: scale(1);
+        -o-transform: scale(1);
+        transform: scale(1);
+        -webkit-transition: all .5s;
+        -moz-transition: all .5s;
+        -ms-transition: all .5s;
+        -o-transition: all .5s;
+        transition: all .5s;
+        cursor: pointer;
+    }
+
+    .reflect-btn {
+        -webkit-transform: scale(-1);
+        -moz-transform: scale(-1);
+        -ms-transform: scale(-1);
+        -o-transform: scale(-1);
+        transform: scale(-1);
+    }
+
+    .remove-row {
+        font-size: 20px;
+    }
+
+        .remove-row:hover {
+            color: red;
+            font-size: 30px;
+        }
+
+    .edit-row {
+        font-size: 20px;
+    }
+
+        .edit-row:hover {
+            color: blue;
+            font-size: 30px;
+        }
 }

@@ -1,0 +1,115 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+<style type="text/css">
+    .my-popover {
+        background: burlywood;
+        position: absolute;
+        width: 100px;
+    }
+
+    .animate-hide {
+        display: block !important;
+        -moz-transition: all 0.5s;
+        -o-transition: all 0.5s;
+        -webkit-transition: all 0.5s;
+        transition: all 0.5s;
+        opacity: 1;
+        height: 100px;
+    }
+
+
+        .animate-hide.ng-hide {
+            opacity: 0;
+            display: block !important;
+            height: 0;
+        }
+</style>
+<link href="~/Content/bootstrap.css" rel="stylesheet" />
+<link href="~/Content/ui-bootstrap-csp.css" rel="stylesheet" />
+<link href="~/Content/cr-lab-grid.css" rel="stylesheet" />
+<link href="~/fonts/ionicons.css" rel="stylesheet" />
+<script src="~/Scripts/angular.js"></script>
+<script src="~/Scripts/module/cr-lab-frid.js"></script>
+<script src="~/Scripts/angular-ui/ui-bootstrap.js"></script>
+<script type="text/javascript">
+    (function () {
+        'use strict';
+        var app = angular.module('app', ['gridCredoLab']);
+
+        app.controller('global', global);
+        global.$inject = ['$scope', 'clGridContainer'];
+
+        function global(scope, clGridContainer) {
+            var id = 1;
+            scope.one = '';
+            scope.two = '';
+            scope.$watchGroup([function () {
+                return scope.one;
+            }, function () {
+                return scope.two;
+            }],
+                function (newV) {
+                    console.log(newV[0]);
+                });
+
+            scope.first = {};
+            scope.first.array = {};
+            scope.first.array.data =
+                [{ id: 1, name: 'vitek', date: new Date(2016, 3, 29) }, { id: 2, name: 'kristina', date: new Date(2016, 4, 1) },
+                    { id: 3, name: 'alex', date: new Date(2016, 4, 7) }, { id: 4, name: 'anna', date: new Date(2016, 3, 12) }];
+
+            scope.index = 'alex';
+            scope.get = function () {
+                scope.selctedItem1 = clGridContainer.clGridSelectedItems('name1');
+                scope.selctedItem2 = clGridContainer.clGridSelectedItems('name2');
+            }
+            scope.sort = function (a) {
+                console.log('sort by field = ' + a);
+            }
+            scope.add = function () {
+                scope.first.array.data.push({ id: id++, name: 'vitek' });
+            }
+        }
+
+        
+    })();
+</script>
+
+<div ng-app="app" ng-controller="global">
+
+    <div cl-grid data="first.array.data" class="row" id="name1" multiselect hide-without-elems>
+        @*<div show-without-elems class="text-center">Table is empty</div>*@
+        <div cl-header>
+            <div cl-caption sortable field="id" class="col-md-2" cl-filter="text">Id</div>
+            <div cl-caption sortable field="name" class="col-md-5" cl-filter="text">Name</div>
+            <div cl-caption sortable field="date" class="col-md-5" cl-filter="date">Date</div>
+        </div>
+        <div cl-body class="row">
+            <div class="col-md-2">{{item.id}}</div>
+            <!--Your build logic-->
+            <div class="col-md-5" ng-style="index==item.name?{'color':'blue'}:{}">
+                {{item.name}} - {{index}}
+                <i style="font-size: 25px" class="ion-ios-close-empty pull-right" selected></i>
+            </div>
+            <div class="col-md-5" ng-style="index==item.name?{'color':'blue'}:{}">
+                {{item.date}}
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script type="text/ng-template" id="templ">
+    <div cl-header local="false" sort-action="sort">
+        <div cl-caption sortable field="id" class="col-md-6">Id</div>
+        <div cl-caption sortable field="name" class="col-md-6">Name</div>
+    </div>
+    <div cl-body>
+        <div>{{header}}</div>
+        <div class="col-md-6">{{item.id}}</div>
+        <div class="col-md-6" ng-style="index==item.name?{'color':'blue'}:{}">{{item.name}} - {{index}}</div>
+    </div>
+</script>
+
