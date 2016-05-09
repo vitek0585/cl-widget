@@ -2,6 +2,7 @@
 # Invoke-WebRequest https://gist.githubusercontent.com/kmorcinek/2710267/raw/ -OutFile .gitignore
 CustomWidgetCL/Scripts/*
 !CustomWidgetCL/Scripts/module/
+!CustomWidgetCL/Scripts/angular-ui/
 !CustomWidgetCL/Scripts/angular.js
 # Include dlls if they’re in the NuGet packages directory
 !/packages/*/lib/*.dll
