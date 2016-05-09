@@ -154,6 +154,13 @@
                     handleSelect(element, item);
                 }
             };
+            $scope.$on('filter.apply', function () {
+                if (angular.isDefined($attrs.filterAction)) {
+                    runFilterRemote($scope);
+                } else {
+                    runFilterLocal($scope);
+                }
+            });
             if (isMultiselect) {
                 gridContainer.registerClGrid(idGrid, function () {
                     return selectedItems;
@@ -188,6 +195,33 @@
                     currentElements.push(element);
                     selectedItems.push(item);
                 }
+            }
+            //filter logic
+
+            function runFilterLocal($scope) {
+                var filterElements = getFilterElements();
+                var data = parseDataHelper.getDataByKeyObject($scope, $scope.keyData);
+
+                for (var i = 0; i < filterElements.length; i++) {
+                    var action = angular.element(filterElements[i]).scope().actionFilter;
+                    data = action(data);
+                }
+                $scope.clData.length = 0;
+                for (var i = 0; i < data.length; i++) {
+                    $scope.clData.push(data[i]);
+                }
+            }
+
+            function runFilterRemote($scope, $element) {
+                var filterElements = getFilterElements();
+                var data = [];
+                for (var i = 0; i < filterElements.length; i++) {
+                    console.log(angular.element(filterElements[i]).scope().infoFilter());
+                }
+
+            }
+            function getFilterElements() {
+                return $($element).find('[cl-filter]');
             }
 
         }
@@ -227,26 +261,26 @@
         }
     }
     //----------------------Popover------------------------------
-    app.directive('popover', popover);
-
-    function popover() {
+    app.directive('clPopover', popover);
+    popover.$inject = ['$compile'];
+    function popover($compile) {
         return {
             restrict: 'A',
+            //scope: true,
             compile: function (tElement, tAttrs, tTransclude) {
+
                 var left = $(tElement).position().left;
-                var top = $(tElement).offset().top;
-                console.log($(tElement).position());
-                console.log($(tElement).offset());
-                var div = $('<div ng-show="popover" >');
-                div.addClass('my-popover animate-hide');
+                var div = $('<div ng-show="popover" ng-cloak>');
+                div.addClass('popover-box animate-popover');
                 div.css({ 'top': $(tElement).position().top + $(tElement).outerHeight(), 'left': left });
 
                 $(tElement).parent().append(div);
-                $('.my-popover').click(function (event) {
+                $('.popover-box').click(function (event) {
                     event.stopPropagation();
                 });
                 return {
                     pre: function (scope, elem, attr) {
+                        scope.popover = false;
                         $('html').click(function () {
                             scope.popover = false;
                             scope.$apply();
@@ -256,6 +290,14 @@
                             scope.popover = !scope.popover;
                             scope.$apply();
                             event.stopPropagation();
+                        });
+
+                        scope.$watch(function () {
+                            return scope[attr.clPropoverTemplate];
+                        }, function (newValue) {
+                            var elemContent = angular.element(newValue);
+                            $compile(elemContent)(scope);
+                            $(elem).parent().find('.popover-box').append(elemContent);
                         });
 
                     }
@@ -279,14 +321,16 @@
                 '</ul>' +
             '</div>',
 
-        textViewTemplate: '<div class="distance-top"><input type="text" class="form-control" ng-model="filterData"/></div>',
-        popoverViewTemplate: '<div class="distance-top"><input type="text" class="form-control" ng-model="filterData"/></div>',
-        //uib-popover-template="\'htmlPopover.html\'" popover-placement="bottom"
+        textViewTemplate: '<div ><input type="text" class="form-control" ng-model="filterData"/></div>',
+
+        popoverViewTemplate: '<div class="distance-top" ng-show="showPopover">' +
+                    '<label cl-popover class="form-control cl-popover" cl-propover-template="propoverContent">{{filterData}}</label>' +
+            '</div>',
     });
     //---------------------------Filter directive---------------------------------
     app.directive('clFilter', clFilter);
-    clFilter.$inject = ['filterTemplates', 'parseDataHelper', 'conditionalFactory', 'filtersManager', '$timeout', '$sce'];
-    function clFilter(filterTemplates, parseDataHelper, conditionalFactory, filtersManager, $timeout, $sce) {
+    clFilter.$inject = ['filterTemplates', 'parseDataHelper', 'conditionalFactory', 'filtersManager', '$timeout', '$rootScope'];
+    function clFilter(filterTemplates, parseDataHelper, conditionalFactory, filtersManager, $timeout, $rootScope) {
         var timer;
 
         return {
@@ -308,11 +352,7 @@
                 if (filter == undefined) {
                     throw Error('Not found any filter for current type - ' + type);
                 }
-                if (filter.htmlPopover !== undefined) {
 
-                    //$(tElement).append('<script id="htmlPopover.html" type="text/ng-template">' + filter.htmlPopover + '</script>');
-                    //scope.htmlPopover = $sce.trustAsHtml(filter.htmlPopover);
-                }
                 var containerDiv = $('<div>').addClass('filter-container');
 
                 filter.viewTemplates.forEach(function (template) {
@@ -326,77 +366,128 @@
                         console.log('Not found any templates for view name ' + template);
                     }
                 });
+                $(tElement).wrapInner('<div cl-header-name>');
+                setMaxHeightCaptionsName(tElement);
                 $(tElement).append(containerDiv);
 
                 return {
                     pre: function preLink(scope, iElement, iAttrs) {
+
                         var filter = filtersManager.getFilterByType(iAttrs.clFilter);
+                        if (filter.initialize !== undefined) {
+                            filter.initialize(scope, iAttrs);
+                        }
+                        if (filter.conditionals === undefined) {
+                            throw Error('Not found any filter for current type - ' + type);
+                        }
+                        if (filter.htmlPopover !== undefined) {
 
-                        if (filter.conditionals !== undefined) {
-
-                            scope.conditionals = filter.conditionals;
-                            scope.conditionalData = scope.conditionals[0];
-                            scope.$watch('conditionalData',
-                                function (newValue) {
-                                    if (newValue.executeImplicitFilter) {
-                                        timer = applyFilter(timer, scope, true);
+                            scope.propoverContent = filter.htmlPopover;
+                            scope.showPopover = false;
+                            scope.filterData = filter.getPropoverData(scope);
+                            scope.$watch('popover',
+                                function(newVal) {
+                                    if (newVal === false && scope.showPopover === true) {
+                                        scope.filterData = filter.getPropoverData(scope);
                                     }
                                 });
                         }
-                        if (filter.initialize !== undefined) {
-                            filter.initialize(scope);
-                        }
+                        scope.conditionals = filter.conditionals;
+                        scope.conditionalData = scope.conditionals[0];
+                        scope.$watch('conditionalData',
+                            function(newValue) {
+                                if (scope.showPopover !== undefined) {
+                                    scope.showPopover = false;
+                                }
 
-                        scope.$watch('filterData', function () {
-                            timer = applyFilter(timer, scope);
-                        });
+                                timer = applyFilter(timer);
+
+                                if (newValue.callBack !== undefined) {
+                                    newValue.callBack(scope);
+                                }
+                                setTimeout(function () {
+                                    calculateCaptionFilterPosition(iElement);
+                                }, 0, false);
+
+                            });
+
+
+                        scope.$watch('filterData',
+                            function() {
+                                timer = applyFilter(timer);
+                            });
+
+
                     }
                 }
             },
             controller: function ($scope, $element, $attrs) {
                 var field = $attrs.field;
 
-                $scope.gridFilterActions.push(filterAction);
                 $scope.onConditionalSelected = function (conditional) {
                     $scope.conditionalData = conditional;
                 }
-                $scope.openPopover = function () {
 
-                }
-                function filterAction(data) {
+                $scope.actionFilter = function (data) {
+
                     if ($scope.conditionalData.predicate == null || $scope.conditionalData.predicate === undefined)
                         return data;
+
                     var newData = [];
+
                     for (var i = 0; i < data.length; i++) {
                         if ($scope.conditionalData.predicate(data[i][field], $scope.filterData, $scope))
                             newData.push(data[i]);
                     }
                     return newData;
                 }
+                $scope.infoFilter = function () {
+                    return {
+                        conditionalData: $scope.conditionalData,
+                        field: field
+                    }
+                }
+                
             }
 
         }
-        function applyFilter(timer, scope) {
+        //filter logic
+        function applyFilter(timer) {
+
             if (timer !== undefined)
                 $timeout.cancel(timer);
 
-            return $timeout(function () { globalActionFilter(scope); }, 500, true);
+            return $timeout(function () {
+                $rootScope.$broadcast('filter.apply', null);
+            }, 500, true);
         }
-        function globalActionFilter($scope) {
+        //end filter logic
+        //Calculate caption position
+        function setMaxHeightCaptionsName(tElement) {
 
-            var data = parseDataHelper.getDataByKeyObject($scope, $scope.keyData);
-
-            var filters = $scope.gridFilterActions;
-            for (var i = 0; i < filters.length; i++) {
-                data = filters[i](data);
-            }
-
-            $scope.clData.length = 0;
-            for (var i = 0; i < data.length; i++) {
-                $scope.clData.push(data[i]);
-            }
+            var maxHeight = getMaxHeight($(tElement).parent(), '[cl-header-name]');
+            $(tElement).parent()
+                .find('[cl-header-name]')
+                .css('height', maxHeight);
         }
 
+        function calculateCaptionFilterPosition(tElement) {
+            var maxHeight = getMaxHeight($(tElement).parent(), '.filter-container');
+            $('.filter-container').css('height', maxHeight);
+        }
+
+        function getMaxHeight(tElement, selector) {
+            var maxHeight = 0;
+            $('.filter-container').css('height', 'auto');
+
+            $(tElement).find(selector)
+                    .each(function (e, v) {
+                        if (maxHeight < $(v).height()) {
+                            maxHeight = $(v).height();
+                        }
+                    });
+            return maxHeight;
+        }
 
     }
     //----------------------Caption directive-------------------------
@@ -415,7 +506,7 @@
                     var sortBtn = angular.element('<i class="ion-ios-arrow-down sort-btn"></i>');
                     $($element).addClass('sortable');
                     $element.on('click', function (event) {
-                        if (!angular.isDefined(event.target.attributes['sortable'])) {
+                        if (!angular.isDefined(event.target.attributes['sortable'] || event.target.attributes['cl-header-name'])) {
                             return;
                         };
                         if (!angular.isDefined($attrs.field)) {
@@ -494,19 +585,17 @@
     function conditionalFactory() {
 
         return {
-            //additionalAction - method will be call after choose current conditional
-            createConditionalForFilter: function (conditionalName, predicate, executeImplicitFilter, additionalAction) {
-                return new Conditional(conditionalName, predicate, executeImplicitFilter, additionalAction);
+            //callBack - method will be call after choose current conditional
+            createConditionalForFilter: function (conditionalName, predicate, callBack) {
+                return new Conditional(conditionalName, predicate, callBack);
             }
         }
-        function Conditional(conditionalName, predicate, executeImplicitFilter, additionalAction) {
+        function Conditional(conditionalName, predicate, callBack) {
 
             return {
                 name: conditionalName,
                 predicate: predicate,
-                additionalAction: additionalAction,
-                executeImplicitFilter: executeImplicitFilter || true,
-
+                callBack: callBack
             }
         }
     }
@@ -537,65 +626,85 @@
     }
     //--------------------------Common filter----------------------
     app.factory('commonFilters', commonFilters);
-    commonFilters.$inject = ['conditionalFactory'];
-    function commonFilters(conditionalFactory) {
+    commonFilters.$inject = ['conditionalFactory', '$filter'];
+    function commonFilters(conditionalFactory, filter) {
         var filters = [];
-        var conditionalsDate = [
+        var conditionalsDate = [conditionalFactory.createConditionalForFilter('none', function () { return true; }),
                 conditionalFactory.createConditionalForFilter('today',
                 function (date) {
-                    var compareDate = convertToDate(date);
+                    var compareDate = convertStringToDate(date);
                     return withoutTime(new Date()).getDate() === (withoutTime(compareDate)).getDate();
                 }),
                 conditionalFactory.createConditionalForFilter('last week',
                 function (date) {
-                    var compareDate = convertToDate(date);
+                    var compareDate = convertStringToDate(date);
                     var currentDate = new Date();
                     return new Date(currentDate.setDate(currentDate.getDate() - 7)) < compareDate;
                 }),
                 conditionalFactory.createConditionalForFilter('last month',
                 function (date) {
-                    var compareDate = convertToDate(date);
+                    var compareDate = convertStringToDate(date);
                     var currentDate = new Date();
                     return new Date(currentDate.setMonth(currentDate.getMonth() - 1)) < compareDate;
                 }),
                 conditionalFactory.createConditionalForFilter('custom',
                 function (date, filterData, scope) {
-                    var compareDate = convertToDate(date);
-                    return scope.dateStart < compareDate && scope.dateEnd > compareDate;
-                }, false, dateAction),
-        conditionalFactory.createConditionalForFilter('none', null, false)];
+                    if (filterData === undefined || filterData.length === 0)
+                        return true;
+                    var compareDate = convertStringToDate(date);
+                    return scope.popup.modelStartDate < compareDate && scope.popup.modelEndDate > compareDate;
+                }, dateAction)];
 
         function dateAction(scope) {
-            scope.isShowPopover = true;
+            scope.showPopover = true;
         }
 
         filters.push({
             type: 'date',
             conditionals: conditionalsDate,
             viewTemplates: ['conditionalViewTemplate', 'popoverViewTemplate'],
-            htmlPopover: '<div>' + getHtmlCalendar('popup.openCalStartAction()', 'popup.modelStartDate', 'popup.openCalStart') + '</div>' +
-                         '<div>' + getHtmlCalendar('popup.openCalEndAction()', 'popup.modelEndDate', 'popup.openCalEnd') + '</div>',
-
-
-            initialize: function ($scope) {
-
-                $scope.openDate = function () {
-                    $scope.popup.opened = true;
-                };
+            htmlPopover:
+                '<div class="text-center">Start date</div>' +
+                '<div>' + getHtmlCalendar('popup.openCalStartAction()', 'popup.modelStartDate', 'popup.openCalStart', 'optionsStartCalendar') + '</div>' +
+                '<div class="text-center">End date</div>' +
+                '<div>' + getHtmlCalendar('popup.openCalEndAction()', 'popup.modelEndDate', 'popup.openCalEnd', 'optionsEndCalendar') + '</div>',
+            initialize: function ($scope, attr) {
+                var currentDate = new Date();
                 $scope.popup = {
-                    modelStartDate: new Date(),
-                    modelEndDate: new Date(),
+                    modelStartDate: $scope[attr.minDate] || new Date(currentDate.setMonth(currentDate.getMonth() - 12)),
+                    modelEndDate: $scope[attr.maxDate] || new Date(),
                     openCalStart: false,
                     openCalEnd: false,
                     openCalStartAction: function () {
-                        this.openCalStart = true;
+                        this.openCalStart = !this.openCalStart;
+                        this.openCalEnd = false;
                     },
                     openCalEndAction: function () {
-                        this.openCalEnd = true;
+                        this.openCalEnd = !this.openCalEnd;
+                        this.openCalStart = false;
                     }
                 };
-            }
+                $scope.optionsStartCalendar = {
+                    maxDate: $scope.popup.modelEndDate
+                }
 
+                $scope.optionsEndCalendar = {
+                    minDate: $scope.popup.modelStartDate
+                }
+                $scope.$watchGroup(['popup.modelStartDate', 'popup.modelEndDate'],
+                    function (newValues) {
+                        $scope.optionsEndCalendar.minDate = newValues[0];
+                        $scope.optionsStartCalendar.maxDate = newValues[1];
+                    });
+
+                if ($scope[attr.minDate] !== undefined)
+                    $scope.optionsStartCalendar.minDate = $scope[attr.minDate];
+                if ($scope[attr.maxDate] !== undefined)
+                    $scope.optionsEndCalendar.maxDate = $scope[attr.maxDate];
+            },
+            getPropoverData: function (scope) {
+                return formatProvider(scope.popup.modelStartDate) + ' - ' + formatProvider(scope.popup.modelEndDate);
+            }
         });
 
         var conditionalsText = [
@@ -621,16 +730,18 @@
             return date;
         }
 
-        function convertToDate(date) {
+        function formatProvider(date, format) {
+            return filter('date')(date);
+        }
+        function convertStringToDate(date) {
             if (angular.isDate(date))
                 return date;
             return new Date(date);
         }
-        function getHtmlCalendar(openFunction, ngModel, isOpenVarableConditional) {
-            return '<div class="distance-top"><input type="text" ng-click="' + openFunction + '" class="form-control" ' +
+        function getHtmlCalendar(openFunction, ngModel, isOpenVarableConditional, options) {
+            return '<div class="distance-top"><input type="text" uib-datepicker-popup ng-click="' + openFunction + '" class="form-control" ' +
                     'ng-model="' + ngModel + '" ' +
-                    'is-open="' + isOpenVarableConditional + '" show-button-bar="false" ' +
-                    '/></div>';
+                    'is-open="' + isOpenVarableConditional + '" show-button-bar="false" datepicker-options="' + options + '"/></div>';
         }
     }
 })();

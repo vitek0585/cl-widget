@@ -87,7 +87,7 @@
     width: 100%;
 }
 /*custom*/
-[cl-header] > div {
+[cl-header] {
     padding: 5px;
     font-size: 14px;
     text-align: center;
@@ -179,6 +179,10 @@
     height: 100%;
     vertical-align: middle;
 }
+
+    [cl-caption][cl-filter] {
+        vertical-align: top;
+    }
 /*Filters*/
 
 [cl-filter] .distance-top {
@@ -191,12 +195,14 @@
 
 [cl-filter] [uib-dropdown-menu] p {
     text-align: left;
-    padding: 10px 3px;
+    padding: 5px 3px;
     margin: 0;
 }
-[cl-filter] [uib-dropdown-menu] p:hover {
-    background: #f9f9f9;
-}
+
+    [cl-filter] [uib-dropdown-menu] p:hover {
+        background: #f9f9f9;
+    }
+
 [cl-filter] .uib-monthpicker button, [cl-filter] .uib-yearpicker button, [cl-filter] .uib-daypicker button, [cl-filter] .uib-weeks em {
     line-height: 0.5;
     padding: 8px 5px;
@@ -310,6 +316,61 @@
     border-radius: 0;
     width: 50%;
     border: none;
+}
+
+[cl-caption] {
+    -ms-word-break: break-all;
+    word-break: break-all;
+}
+/*popover*/
+.cl-popover {
+    height: auto !important;
+    min-height: 30px;
+    text-align: left;
+    font-weight: normal;
+}
+
+label[cl-popover] {
+    margin: 0;
+}
+
+.cl-popover:hover {
+    cursor: pointer;
+}
+
+.popover-box {
+    padding: 2px 5px;
+    position: absolute;
+    z-index: 100;
+    background: white;
+    border: 1px solid #cccccc;
+    margin-top: 2px;
+}
+
+    .popover-box > div {
+        font-size: 12px;
+    }
+
+.animate-popover {
+    display: block !important;
+    -moz-transition: all 0.2s;
+    -o-transition: all 0.2s;
+    -webkit-transition: all 0.2s;
+    transition: all 0.2s;
+    opacity: 1;
+}
+
+.filter-container {
+    display: table-cell;
+    vertical-align: bottom;
+    bottom: 5px;
+    width: 100vh;
+}
+
+.animate-popover.ng-hide {
+    opacity: 0;
+    z-index: -1000;
+    display: block !important;
 }
 
 @media only screen and (max-width: 995px) {
