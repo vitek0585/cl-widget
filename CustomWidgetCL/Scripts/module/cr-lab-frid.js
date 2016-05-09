@@ -288,6 +288,9 @@
 
                         $(elem).click(function () {
                             scope.popover = !scope.popover;
+                            if (scope.popover === true) {
+                                refreshPosition(elem);
+                            }
                             scope.$apply();
                             event.stopPropagation();
                         });
@@ -299,6 +302,12 @@
                             $compile(elemContent)(scope);
                             $(elem).parent().find('.popover-box').append(elemContent);
                         });
+
+                        function refreshPosition(tElement) {
+                            var left = $(tElement).position().left;
+                            var div = $(tElement).parent().find('.popover-box');
+                            div.css({ 'top': $(tElement).position().top + $(tElement).outerHeight(), 'left': left });
+                        }
 
                     }
                 }
@@ -323,7 +332,7 @@
 
         textViewTemplate: '<div ><input type="text" class="form-control" ng-model="filterData"/></div>',
 
-        popoverViewTemplate: '<div class="distance-top" ng-show="showPopover">' +
+        popoverViewTemplate: '<div class="distance-top" ng-show="showInputForPopover">' +
                     '<label cl-popover class="form-control cl-popover" cl-propover-template="propoverContent">{{filterData}}</label>' +
             '</div>',
     });
@@ -383,11 +392,11 @@
                         if (filter.htmlPopover !== undefined) {
 
                             scope.propoverContent = filter.htmlPopover;
-                            scope.showPopover = false;
+                            scope.showInputForPopover = false;
                             scope.filterData = filter.getPropoverData(scope);
                             scope.$watch('popover',
-                                function(newVal) {
-                                    if (newVal === false && scope.showPopover === true) {
+                                function (newVal) {
+                                    if (newVal === false && scope.showInputForPopover === true) {
                                         scope.filterData = filter.getPropoverData(scope);
                                     }
                                 });
@@ -395,9 +404,9 @@
                         scope.conditionals = filter.conditionals;
                         scope.conditionalData = scope.conditionals[0];
                         scope.$watch('conditionalData',
-                            function(newValue) {
-                                if (scope.showPopover !== undefined) {
-                                    scope.showPopover = false;
+                            function (newValue) {
+                                if (scope.showInputForPopover !== undefined) {
+                                    scope.showInputForPopover = false;
                                 }
 
                                 timer = applyFilter(timer);
@@ -413,7 +422,7 @@
 
 
                         scope.$watch('filterData',
-                            function() {
+                            function () {
                                 timer = applyFilter(timer);
                             });
 
@@ -447,7 +456,7 @@
                         field: field
                     }
                 }
-                
+
             }
 
         }
@@ -633,7 +642,7 @@
                 conditionalFactory.createConditionalForFilter('today',
                 function (date) {
                     var compareDate = convertStringToDate(date);
-                    return withoutTime(new Date()).getDate() === (withoutTime(compareDate)).getDate();
+                    return removeTimeFromDate(new Date()).getDate() === (removeTimeFromDate(compareDate)).getDate();
                 }),
                 conditionalFactory.createConditionalForFilter('last week',
                 function (date) {
@@ -656,9 +665,8 @@
                 }, dateAction)];
 
         function dateAction(scope) {
-            scope.showPopover = true;
+            scope.showInputForPopover = true;
         }
-
         filters.push({
             type: 'date',
             conditionals: conditionalsDate,
@@ -706,7 +714,7 @@
                 return formatProvider(scope.popup.modelStartDate) + ' - ' + formatProvider(scope.popup.modelEndDate);
             }
         });
-
+        //filter for simple input text
         var conditionalsText = [
                            conditionalFactory.createConditionalForFilter('contains',
                            function (dataText, filterText) {
@@ -721,15 +729,33 @@
             viewTemplates: ['textViewTemplate']
 
         });
-
+        //filter for numbers
+        var numberConditional = [
+            conditionalFactory.createConditionalForFilter('containsInRange',
+                function () {
+                    return true;
+                }, function (scope) {
+                    scope.showInputForPopover = true;
+                })];
+        filters.push({
+            type: 'number',
+            conditionals: numberConditional,
+            viewTemplates: ['popoverViewTemplate'],
+            htmlPopover: '<div class="text-center" >From</div>' +
+                '<p number-picker value="min"></p>' +
+                '<div class="text-center">To</div>' +
+                '<p number-picker value="max"></p>',
+            getPropoverData: function (scope) {
+                return 0 + ' - ' + 1;
+            }
+        });
         return filters;
         //helpers methods
-        function withoutTime(currentDate) {
+        function removeTimeFromDate(currentDate) {
             var date = new Date(currentDate);
             date.setHours(0, 0, 0, 0, 0);
             return date;
         }
-
         function formatProvider(date, format) {
             return filter('date')(date);
         }
@@ -744,4 +770,127 @@
                     'is-open="' + isOpenVarableConditional + '" show-button-bar="false" datepicker-options="' + options + '"/></div>';
         }
     }
+    //--------------------------number template
+    app.directive('numberPicker', ['numberPickerService', function (service) {
+        'use strict';
+
+        var config = {
+            min: 0,
+            max: Infinity,
+            step: 1
+
+        },
+          base = {
+              restrict: 'E,A',
+              scope: {
+                  'value': '=',
+                  'min': '@',
+                  'max': '@',
+              }
+          };
+
+        return angular.extend(base, {
+            //check if number
+            link: function (scope) {
+                var opts = service.assignExtend(scope, config);
+                if (!service.checkNumber([opts.min, opts.max, opts.step])) {
+                    throw new Error('some value: (min, max or step) is not a valid number');
+                }
+                scope.id = service.getId();
+
+                //transform string to number
+                service.transform(opts);
+
+                //change current value if min value is bigger
+                if (opts.min > scope.value) {
+                    scope.value = opts.min;
+                }
+                //change current value if max value is small
+                if (opts.max < scope.value) {
+                    scope.value = opts.max;
+                }
+
+                //watch for disabled buttons
+                scope.$watch('value', function (newValue, oldValue) {
+                    var min = opts.min,
+                        max = opts.max;
+
+                    scope.canDown = newValue > min;
+                    scope.canUp = newValue < max;
+                    scope.isMaxValue = !scope.canUp;
+                    scope.isMinValue = !scope.canDown;
+
+                    if ((!service.checkNumber(newValue) || newValue > max || newValue < min) && newValue !== '') {
+                        //set oldValue or min value if oldValue isn't number when newValue isn't a number or newValue more than max or newValue less than min
+                        scope.value = service.checkNumber(oldValue) ? oldValue : opts.min;
+                    }
+                });
+
+            },
+            template: function() {
+                return '<input type=\"text\" ng-model=\"value\" class=\"form-control text-center\" ng-readonly=\"enter\" id=\"{{id}}\">';
+            }
+        });
+    }]);
+    app.service('numberPickerService', function () {
+        'use strict';
+
+        return {
+            index: 0,
+            assignExtend: function (dest, src) {
+                var o = {};
+
+                for (var key in src) {
+                    if (dest[key]) {
+                        o[key] = dest[key];
+                    } else {
+                        o[key] = src[key];
+                        dest[key] = src[key];
+                    }
+                }
+                return o;
+            },
+            isNumber: function (value) {
+                var val = Number(value);
+                return !isNaN(val) && val === +value;
+            },
+            toNumber: function (value) {
+                return Number(value);
+            },
+            checkNumber: function (value) {
+                var self = this,
+                  //count no numbers
+                  cnn = 0;
+
+                if (angular.isArray(value)) {
+                    angular.forEach(value, function (v) {
+                        if (!self.isNumber(v)) {
+                            cnn += 1;
+                        }
+                    });
+                    if (cnn > 0) {
+                        return false;
+                    }
+                    return true;
+                }
+                if (!this.isNumber(value)) {
+                    return false;
+                }
+                return true;
+            },
+            transform: function (opts) {
+                for (var key in opts) {
+                    opts[key] = this.toNumber(opts[key]);
+                }
+            },
+            getId: function () {
+                this.index += 1;
+                return 'number-picker-' + this.index;
+            }
+        };
+    });
+
+
+
 })();
+

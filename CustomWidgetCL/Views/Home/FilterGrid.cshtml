@@ -2,7 +2,6 @@
     ViewBag.Title = "Home Page";
 }
 <style type="text/css">
-   
     /*custom*/
     .table-cust {
         /*display: table;*/
@@ -108,7 +107,7 @@
     <div cl-grid data="first.array.data" class="row" id="name1" multiselect hide-without-elems>
         @*<div show-without-elems class="text-center">Table is empty</div>*@
         <div cl-header class="row">
-            <div cl-caption sortable field="id" class="col-md-2">
+            <div cl-caption sortable field="id" class="col-md-2" cl-filter="number">
                 Id
             </div>
             <div cl-caption sortable field="name" class="col-md-5" cl-filter="text">
@@ -118,55 +117,20 @@
                 Dateqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
             </div>
         </div>
-        @*<div cl-header class="row">
-                <div class="col-md-2">
-                </div>
-                <div field="name" class="col-md-5" cl-filter="text">
-                </div>
-                <div field="date" class="col-md-5" cl-filter="date">
-                </div>
-            </div>*@
-        <div cl-body class="row">
-            <div class="col-md-2">{{item.id}}</div>
-            <!--Your build logic-->
-            <div class="col-md-5" ng-style="index==item.name?{'color':'blue'}:{}">
-                {{item.name}} - {{index}}
-                <i style="font-size: 25px" class="ion-ios-close-empty pull-right" selected></i>
-            </div>
-            <div class="col-md-5" ng-style="index==item.name?{'color':'blue'}:{}">
-                {{item.date}}
-            </div>
+        div cl-body class="row">
+        <div class="col-md-2">{{item.id}}</div>
+        <!--Your build logic-->
+        <div class="col-md-5" ng-style="index==item.name?{'color':'blue'}:{}">
+            {{item.name}} - {{index}}
+            <i style="font-size: 25px" class="ion-ios-close-empty pull-right" selected></i>
         </div>
+        <div class="col-md-5" ng-style="index==item.name?{'color':'blue'}:{}">
+            {{item.date}}
+        </div>
+    </div>
 
-    </div>
-    <div class="row">
-        <div class="col-lg-12 table-cust">
-            Hello
-            <div class="red">
-                <div class="col-md-4">
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                </div>
-                <div style="background: grey; width: 33%;">
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                </div>
-                <div class="col-md-4">
-                    <input type="" value="" />
-                    <input type="" value="" />
-                    <input type="" value="" />
-                </div>
-            </div>
-        </div>
-    </div>
+
+
 </div>
 
 <script type="text/ng-template" id="templ">
