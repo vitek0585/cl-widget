@@ -180,30 +180,30 @@
     vertical-align: middle;
 }
 
-    [cl-caption][cl-filter] {
+    [cl-caption][filter-type] {
         vertical-align: top;
     }
 /*Filters*/
 
-[cl-filter] .distance-top {
+[filter-type] .distance-top {
     margin-top: 2px;
 }
 
-[cl-filter] [uib-dropdown-toggle] {
+[filter-type] [uib-dropdown-toggle] {
     width: 100%;
 }
 
-[cl-filter] [uib-dropdown-menu] p {
+[filter-type] [uib-dropdown-menu] p {
     text-align: left;
     padding: 5px 3px;
     margin: 0;
 }
 
-    [cl-filter] [uib-dropdown-menu] p:hover {
+    [filter-type] [uib-dropdown-menu] p:hover {
         background: #f9f9f9;
     }
 
-[cl-filter] .uib-monthpicker button, [cl-filter] .uib-yearpicker button, [cl-filter] .uib-daypicker button, [cl-filter] .uib-weeks em {
+[filter-type] .uib-monthpicker button, [filter-type] .uib-yearpicker button, [filter-type] .uib-daypicker button, [filter-type] .uib-weeks em {
     line-height: 0.5;
     padding: 8px 5px;
     border: none;
@@ -211,105 +211,105 @@
     -webkit-box-shadow: none;
 }
 
-    [cl-filter] .uib-monthpicker button:hover, [cl-filter] .uib-yearpicker button:hover, [cl-filter] .uib-daypicker button:hover {
+    [filter-type] .uib-monthpicker button:hover, [filter-type] .uib-yearpicker button:hover, [filter-type] .uib-daypicker button:hover {
         color: #333;
         background-color: #F9F9F9;
         border-color: transparent;
     }
 
-[cl-filter] .btn:focus, [cl-filter] .btn:active:focus, [cl-filter] .btn-default:active:focus, [cl-filter] .btn:focus, [cl-filter] .btn-default.active {
+[filter-type] .btn:focus, [filter-type] .btn:active:focus, [filter-type] .btn-default:active:focus, [filter-type] .btn:focus, [filter-type] .btn-default.active {
     outline: none;
     background-color: #f9f9f9;
 }
 
-[cl-filter] .text-info {
+[filter-type] .text-info {
     color: #333;
 }
 
-[cl-filter] .btn:active {
+[filter-type] .btn:active {
     background-image: none;
     outline: 0;
 }
 
-[cl-filter] [aria-label] {
+[filter-type] [aria-label] {
     font-size: 60%;
 }
 
-[cl-filter] .uib-weeks .h6 {
+[filter-type] .uib-weeks .h6 {
     font-family: inherit;
     font-weight: 600;
     line-height: 0;
     color: inherit;
 }
 
-[cl-filter] .btn-info:active, [cl-filter] .btn-info.active, .btn-info {
+[filter-type] .btn-info:active, [filter-type] .btn-info.active, .btn-info {
     color: #333;
     background-color: #f9f9f9;
 }
 
-    [cl-filter] .btn-info:active:hover {
+    [filter-type] .btn-info:active:hover {
         color: #333;
         background-color: #f9f9f9;
         border-color: transparent;
     }
 
-[cl-filter] .uib-daypicker button:active {
+[filter-type] .uib-daypicker button:active {
     outline: none;
 }
 
-[cl-filter] .uib-daypicker:focus {
+[filter-type] .uib-daypicker:focus {
     outline: none;
 }
 
-[cl-filter] .form-control {
+[filter-type] .form-control {
     font-size: 12px;
     height: 30px;
 }
 
-[cl-filter] * {
+[filter-type] * {
     border-radius: 0;
 }
 
-[cl-filter] .uib-monthpicker th button:hover, [cl-filter] .uib-yearpicker th button:hover, [cl-filter] .uib-daypicker th button:hover {
+[filter-type] .uib-monthpicker th button:hover, [filter-type] .uib-yearpicker th button:hover, [filter-type] .uib-daypicker th button:hover {
     background: transparent;
 }
 
-[cl-filter] .btn-group.dropdown {
+[filter-type] .btn-group.dropdown {
     width: 100%;
 }
 
-[cl-filter] .float-right {
+[filter-type] .float-right {
     float: right;
 }
 
-[cl-filter] [uib-dropdown] {
+[filter-type] [uib-dropdown] {
     font-size: 11px;
 }
 
-    [cl-filter] [uib-dropdown] .btn {
+    [filter-type] [uib-dropdown] .btn {
         padding: 6px 8px;
         font-size: 11px;
         text-transform: capitalize;
     }
 
-    [cl-filter] [uib-dropdown] .btn-default:hover, [cl-filter] .open > .dropdown-toggle.btn-default {
+    [filter-type] [uib-dropdown] .btn-default:hover, [filter-type] .open > .dropdown-toggle.btn-default {
         background-color: #f9f9f9;
     }
 
-    [cl-filter] [uib-dropdown] button {
+    [filter-type] [uib-dropdown] button {
         text-align: left;
     }
 
-[cl-filter] [uib-dropdown-menu] {
+[filter-type] [uib-dropdown-menu] {
     font-size: 11px;
     text-transform: capitalize;
 }
 
-[cl-filter] .filter-container {
+[filter-type] .filter-container {
     margin-left: 5px;
 }
 
-[cl-filter] .button-filter {
+[filter-type] .button-filter {
     padding: 5px 5px;
     font-size: 11px;
     line-height: 1;
@@ -322,23 +322,23 @@
     -ms-word-break: break-all;
     word-break: break-all;
 }
-/*popover*/
-.cl-popover {
+/*popup*/
+.cl-popup {
     height: auto !important;
     min-height: 30px;
     text-align: left;
     font-weight: normal;
 }
 
-label[cl-popover] {
+label[cl-popup] {
     margin: 0;
 }
 
-.cl-popover:hover {
+.cl-popup:hover {
     cursor: pointer;
 }
 
-.popover-box {
+.popup-box {
     padding: 2px 5px;
     position: absolute;
     z-index: 100;
@@ -347,11 +347,11 @@ label[cl-popover] {
     margin-top: 2px;
 }
 
-    .popover-box > div {
+    .popup-box > div {
         font-size: 12px;
     }
 
-.animate-popover {
+.animate-popup {
     display: block !important;
     -moz-transition: all 0.2s;
     -o-transition: all 0.2s;
@@ -367,7 +367,7 @@ label[cl-popover] {
     width: 100vh;
 }
 
-.animate-popover.ng-hide {
+.animate-popup.ng-hide {
     opacity: 0;
     z-index: -1000;
     display: block !important;
