@@ -177,12 +177,10 @@
     float: none;
     display: table-cell;
     height: 100%;
-    vertical-align: middle;
+    vertical-align: top;
 }
 
-    [cl-caption][filter-type] {
-        vertical-align: top;
-    }
+
 /*Filters*/
 
 [filter-type] .distance-top {
@@ -262,8 +260,9 @@
 }
 
 [filter-type] .form-control {
-    font-size: 12px;
+    font-size: 10px;
     height: 30px;
+    padding: 6px 6px;
 }
 
 [filter-type] * {
@@ -317,10 +316,14 @@
     width: 50%;
     border: none;
 }
+[cl-filter-container] .container-date-pickers>div{
+        display: inline-block;
+        width: 50%;
+    }
 
 [cl-caption] {
-    -ms-word-break: break-all;
-    word-break: break-all;
+    -ms-word-break: break-word;
+    word-break: break-word;
 }
 /*popup*/
 .cl-popup {
@@ -439,4 +442,19 @@ label[cl-popup] {
             color: blue;
             font-size: 30px;
         }
+
+    /*filter*/
+    [filter-type] .filter-container {
+        padding-left: 5px;
+    }
+
+    [filter-type] .form-control {
+        height: 25px;
+    }
+    [filter-type] .btn {
+        line-height: 1;
+    }
+    .popup-box > div {
+        font-size: 10px;
+    }
 }

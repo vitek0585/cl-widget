@@ -56,7 +56,8 @@
 
             registerClGrid: registerClGrid,
             selectedRows: selectedRows,
-            selectedRow: selectedRow
+            selectedRow: selectedRow,
+            getFilterData: getFilterData
         };
 
         function selectedRows(idGrid) {
@@ -72,18 +73,18 @@
             }
 
             return undefined;
+            function getData(source, dest) {
+                if (angular.isArray(source)) {
+                    source.forEach(function (e) {
+                        dest.push(e);
+                    });
+                    return dest;
+                }
+                return source;
+            }
         }
         function selectedRow(idGrid) {
             return selectedRows(idGrid);
-        }
-        function getData(source, dest) {
-            if (angular.isArray(source)) {
-                source.forEach(function (e) {
-                    dest.push(e);
-                });
-                return dest;
-            }
-            return source;
         }
         function registerClGrid(idGrid, func) {
 
@@ -94,6 +95,15 @@
             clGrids[key] = func;
         }
 
+        function getFilterData(id) {
+            var filterData = undefined;
+            if (id === undefined && $('[cl-grid]')[0]) {
+                filterData = angular.element($('[cl-grid]')).scope().getFilterData();
+            } else if (angular.isDefined(id) && $('#' + id)) {
+                filterData = angular.element($('[cl-grid]')).scope().getFilterData();
+            }
+            return filterData;
+        }
     }
     //-----------------------------------Grid directive-------------------------
     app.directive('clGrid', gridExecute);
@@ -157,7 +167,7 @@
                     handleSelect(element, item);
                 }
             };
-
+            $scope.getFilterData = getFilterData;
 
             if (isMultiselect) {
                 gridContainer.registerClGrid(idGrid, function () {
@@ -217,6 +227,15 @@
             }
 
             function runServerSideFilter($scope, $attrs) {
+
+                var filterData = getFilterData();
+                $scope[$attrs.serverFilterAction](filterData);
+            }
+            function getFilterElements() {
+                return $($element).find('[filter-type]');
+            }
+
+            function getFilterData() {
                 var filterElements = getFilterElements();
                 var filterData = [];
                 for (var i = 0; i < filterElements.length; i++) {
@@ -224,11 +243,7 @@
                     if (dataObject !== undefined)
                         filterData.push(dataObject);
                 }
-
-                $scope[$attrs.serverFilterAction](filterData);
-            }
-            function getFilterElements() {
-                return $($element).find('[filter-type]');
+                return filterData;
             }
 
         }
@@ -387,6 +402,7 @@
                         }
                     }
                 });
+
                 $(tElement).wrapInner('<div cl-header-name>');
                 setMaxHeightCaptionsName(tElement);
                 $(tElement).append(containerDiv);
@@ -414,6 +430,13 @@
                                 });
                         }
                         scope.conditions = filter.conditions;
+                        //set name for each condition
+                        if (scope[iAttrs.coditionNames] !== undefined) {
+                            var conditionNames = scope[iAttrs.coditionNames];
+                            for (var i = 0; i < conditionNames.length; i++) {
+                                scope.conditions[i].name = conditionNames[i].name;
+                            }
+                        }
                         var selectedCondition = iAttrs['conditionSelected'];
                         if (selectedCondition !== undefined && angular.isNumber(parseInt(selectedCondition))
                             && selectedCondition > 0 && selectedCondition < scope.conditions.length) {
@@ -620,8 +643,8 @@
             }
             return data;
         }
-        this.convertDateToUtc = function (date) {
-            return moment(date).utc().format();
+        this.convertDateToString = function (date) {
+            return moment(date).format();
         }
     }
     //---------------------Condition Factory ------------------------------
@@ -675,11 +698,11 @@
     function commonFilterTypes(conditionFactory, filter, convertHelper) {
 
         var filters = [];
-        var currentDate = new Date();
+        var currentDate = normalizeStartDate(new Date());
 
-        var today = new Date();
-        var lastWeek = new Date(currentDate.setDate(currentDate.getDate() - 7));
-        var lastMonth = new Date(currentDate.setMonth(currentDate.getMonth() - 1));
+        var today = normalizeStartDate(new Date());
+        var lastWeek = normalizeStartDate(new Date().setDate(currentDate.getDate() - 7));
+        var lastMonth = normalizeStartDate(new Date().setMonth(currentDate.getMonth() - 1));
         var conditionsDate = [
                 //1
                 conditionFactory.createConditionForFilter('none', function () { return true; }, function () { return undefined; }),
@@ -687,9 +710,9 @@
                conditionFactory.createConditionForFilter('today',
                 function (date) {
                     var compareDate = convertStringToDate(date);
-                    return removeTimeFromDate(today) === (removeTimeFromDate(compareDate)).getDate();
+                    return today === normalizeStartDate(compareDate);
                 }, function () {
-                    return { startCreatedDate: convertHelper.convertDateToUtc(today) };
+                    return { startCreatedDate: convertHelper.convertDateToString(today) };
                 }),
                 //3
                conditionFactory.createConditionForFilter('last week',
@@ -697,7 +720,7 @@
                     var compareDate = convertStringToDate(date);
                     return lastWeek < compareDate;
                 }, function () {
-                    return { startCreatedDate: convertHelper.convertDateToUtc(lastWeek) };
+                    return { startCreatedDate: convertHelper.convertDateToString(lastWeek) };
                 }),
                 //4
                 conditionFactory.createConditionForFilter('last month',
@@ -705,7 +728,7 @@
                     var compareDate = convertStringToDate(date);
                     return lastMonth < compareDate;
                 }, function () {
-                    return { startCreatedDate: convertHelper.convertDateToUtc(lastMonth) };
+                    return { startCreatedDate: convertHelper.convertDateToString(lastMonth) };
                 }),
                 //5
                 conditionFactory.createConditionForFilter('custom',
@@ -716,8 +739,8 @@
                     return scope.datePickerPopup.modelStartDate < compareDate && scope.datePickerPopup.modelEndDate > compareDate;
                 }, function (field, filterData, scope) {
                     return {
-                        startCreatedDate: convertHelper.convertDateToUtc(scope.datePickerPopup.modelStartDate),
-                        endCreatedDate: convertHelper.convertDateToUtc(scope.datePickerPopup.modelEndDate)
+                        startCreatedDate: convertHelper.convertDateToString(normalizeStartDate(scope.datePickerPopup.modelStartDate)),
+                        endCreatedDate: convertHelper.convertDateToString(normalizeEndDate(scope.datePickerPopup.modelEndDate))
                     };
 
                 }, dateAction)];
@@ -730,7 +753,7 @@
             initialize: function ($scope, attr) {
                 var currentDate = new Date();
                 $scope.datePickerPopup = {
-                    modelStartDate: $scope[attr.minDate] || new Date(currentDate.getFullYear(), 0, 1),
+                    modelStartDate: $scope[attr.minDate] || normalizeStartDate(new Date(currentDate.getFullYear(), 0, 1)),
                     modelEndDate: $scope[attr.maxDate] || new Date(),
                     openCalStart: false,
                     openCalEnd: false,
@@ -754,11 +777,17 @@
                 }
                 $scope.$watchGroup(['datePickerPopup.modelStartDate', 'datePickerPopup.modelEndDate'],
                     function (newValues) {
+                 
                         if ($scope.datePickerPopup.modelStartDate > $scope.datePickerPopup.modelEndDate) {
                             $scope.datePickerPopup.modelStartDate = $scope.datePickerPopup.modelEndDate;
                             newValues[0] = newValues[1];
                         }
+                        if ($scope.datePickerPopup.modelStartDate > today) {
+                            $scope.datePickerPopup.modelStartDate = today;
+                            newValues[0] = today;
+                        }
 
+                        //$scope.datePickerPopup.modelStartDate = moment($scope.datePickerPopup.modelStartDate).local('LLL');
                         $scope.optionsEndCalendar.minDate = newValues[0];
                         $scope.optionsStartCalendar.maxDate = newValues[1];
                         $scope.$broadcast('filter.change');
@@ -815,24 +844,94 @@
         });
         return filters;
         //helpers methods
-        function removeTimeFromDate(currentDate) {
+        function normalizeStartDate(currentDate) {
+            if (!angular.isDate(new Date(currentDate)))
+                return undefined;
             var date = new Date(currentDate);
             date.setHours(0, 0, 0, 0, 0);
             return date;
         }
-
+        function normalizeEndDate(currentDate) {
+            var date = normalizeStartDate(new Date().setDate(currentDate.getDate() + 1));
+            date.setHours(0, -1, 0, 0);
+            return date;
+        }
         function convertStringToDate(date) {
             if (angular.isDate(date))
                 return date;
             return new Date(date);
         }
         function getHtmlCalendar(openFunction, ngModel, isOpenVarableCondition, options) {
-            return '<div><input type="text" uib-datepicker-popup ng-click="' + openFunction + '" class="form-control" ' +
+            return '<div><input type="text" uib-datepicker-popup="shortDate" ng-click="' + openFunction + '" class="form-control" ' +
                     'ng-model="' + ngModel + '" ' +
                     'is-open="' + isOpenVarableCondition + '" show-button-bar="false" datepicker-options="' + options + '"/></div>';
         }
     }
 
+    app.directive('normalizeDate', ['$filter', 'convertHelper',
+        function (filter, convertHelper) {
+            return {
+                require: 'ngModel',
+                restrict: 'A',
+                link: function (scope, element, attr, ngModel) {
+                    ngModel.$formatters.length = 0;
+                    ngModel.$formatters.unshift(function (utcDate) {
+                        var m = ngModel;
+                        if (!utcDate)
+                            return;
+
+                        return filter('formatDate')(utcDate);
+                    });
+                    ngModel.$parsers.length = 0;
+                    ngModel.$parsers.unshift(function (modelValue) {
+                        var m = ngModel;
+                        if (!angular.isDate(new Date(modelValue)))
+                            return modelValue;
+                        return new Date(modelValue);
+                    });
+                    scope.$watch(function () {
+                        return convertHelper.convertStringToObjectData(scope, attr.doNormalize);
+                    }, function (checkValidate) {
+
+                        if (checkValidate === false)
+                            return;
+
+                        if (ngModel.$modelValue)
+                        ngModel.$modelValue = ngModel.$formatters[0](ngModel.$modelValue);
+
+                        //ngModel.$viewValue = filter('formatDate')(modelValue);
+                        //element[0].value = filter('formatDate')(modelValue);
+                    });
+                    scope.$watch(function () {
+                        return ngModel.$viewValue;
+                    }, function (modelValue) {
+                        var m = ngModel;
+                        var ifCheckDate = convertHelper.convertStringToObjectData(scope, attr.doNormalize);
+                        if (!angular.isDate(modelValue))
+                            return;
+
+                        ngModel.$modelValue = ngModel.$formatters[0](ngModel.$modelValue);
+
+                        //ngModel.$viewValue = filter('formatDate')(modelValue);
+                        //element[0].value = filter('formatDate')(modelValue);
+                    });
+                    //scope.$watch(function () {
+                    //    return element[0].value;
+                    //}, function (modelValue) {
+
+                    //    if (!angular.isDate(new Date(modelValue)))
+                    //        return;
+                    //    ngModel.$modelValue = new Date(modelValue);
+                    //});
+                }
+            }
+        }]);
+    //LOCALE GRID
+    app.filter('formatDate', function () {
+        return function (date) {
+            return moment(date).format('L');
+        }
+    });
     //--------------------------number template
     app.directive('numberPicker', ['numberPickerService', function (service) {
         'use strict';
@@ -960,4 +1059,3 @@
 
 
 })();
-
