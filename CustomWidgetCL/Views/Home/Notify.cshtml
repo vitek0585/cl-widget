@@ -1,0 +1,50 @@
+﻿@{
+    ViewBag.Title = "Notify";
+}
+<div ng-app="app" ng-controller="ctrl as rc">
+    <button ng-click="rc.getData()">Get data</button>
+    <button ng-click="rc.getDataError()">Get data error</button>
+    <button ng-click="rc.getDataAuth()">Get data auth</button>
+    <toaster-container toaster-options="{'time-out': 3000, 'close-button':false, 'animation-class': 'toast-top-center'}"></toaster-container>
+</div>
+
+@section scripts{
+    <link href="~/Content/bootstrap.css" rel="stylesheet" />
+    <link href="~/Content/toaster.css" rel="stylesheet" />
+    <script src="~/Scripts/angular.js"></script>
+    <script src="~/Scripts/module/toaster.js"></script>
+    <script src="~/Scripts/module/errorHandling.js"></script>
+
+    <script type="text/javascript">
+        var app = angular.module('app', ['responseHandlingApp']);
+        app.controller('ctrl', ctrl);
+        ctrl.$inject = ['$http', 'notifier','toaster'];
+        function ctrl(http, notifier, toaster) {
+
+            var vm = this;
+
+            vm.getData = function () {
+                $.ajax({
+                    method:'POST',
+                    url: '/api/Date'
+                });
+                //http.post('/api/Date');
+            }
+            vm.getDataError = function () {
+                $.ajax({
+                    method: 'PUT',
+                    url: '/api/Date'
+                });
+                //http.put('/api/Date');
+            }
+            vm.getDataAuth = function () {
+                $.ajax({
+                    method: 'Delete',
+                    url: '/api/Date'
+                });
+                //http.put('/api/Date');
+            }
+        }
+    </script>
+}
+

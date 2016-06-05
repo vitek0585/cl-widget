@@ -19,10 +19,23 @@ namespace CustomWidgetCL.Controllers
         {
             return Ok(obj);
         }
-
+        [HttpPost]
+        public IHttpActionResult Get()
+        {
+            return Json(new { message = "super puper" });
+        }
+        public IHttpActionResult Put()
+        {
+            throw new Exception("eeeee");
+        }
+        [Authorize]
+        public IHttpActionResult Delete()
+        {
+            return Json(new { message = "Authorize" });
+        }
     }
 
-    class LocalizationAttribute:ActionFilterAttribute
+    class LocalizationAttribute : ActionFilterAttribute
     {
         public override void OnActionExecuting(HttpActionContext actionContext)
         {

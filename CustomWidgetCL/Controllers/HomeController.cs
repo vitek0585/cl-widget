@@ -24,5 +24,16 @@ namespace CustomWidgetCL.Controllers
 
             return View();
         }
+
+        public ActionResult MomentDate()
+        {
+            return View();
+        }
+
+        public ActionResult Notify()
+        {
+            return View();
+        }
+       
     }
 }

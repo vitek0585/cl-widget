@@ -13,12 +13,13 @@ namespace ThreadTest
             var factory = new TaskFactory(TaskCreationOptions.LongRunning, TaskContinuationOptions.None);
             var listTask = new List<Task>();
 
-            for (int i = 0; i < 100000; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 var task = factory.StartNew(async () =>
                 {
                     var context = new CategoryContext();
-                    context.Category.Add(new Category() {CategoryName = $"{i} cat!", RefPhoto = "Foto.img"});
+                    var a = context.Category.Add(new Category() {CategoryName = $"{i} cat!", RefPhoto = "Foto.img"});
+                    a.CategoryName = "wee";
                     await Task.Delay(200);
                         context.SaveChanges();
                 });

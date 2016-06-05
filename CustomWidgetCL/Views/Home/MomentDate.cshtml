@@ -1,0 +1,33 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+@section scripts{
+    <link href="~/Content/angular-moment-picker.css" rel="stylesheet"/>
+    <script src="~/Scripts/angular.js"></script>
+    <script src="~/Scripts/moment-with-locales.js"></script>
+    <script src="~/Scripts/Moment/angular-moment-picker.js"></script>
+    <script type="text/javascript">
+        var app = angular.module('myApp', ['moment-picker']);
+        app.controller('global', global);
+        global.$inject = ['$scope'];
+
+        function global(scope) {
+            // scope.locale = window.navigator.language;
+        }
+    </script>
+}
+<div ng-app="myApp">
+    <div ng-controller="global">
+        <hr />
+        <div class="input-group"
+                 moment-picker="datepicker"
+                 format="YYYY-MM-DD">
+                <input class="form-control"
+                       placeholder="Select a date"
+                       ng-model="datepicker"
+                       start-view="day"
+                       locale="en"
+                       ng-model-options="{ updateOn: 'blur' }">
+            </div>
+    </div>
+</div>

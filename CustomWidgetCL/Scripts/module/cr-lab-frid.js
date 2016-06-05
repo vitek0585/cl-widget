@@ -644,6 +644,8 @@
             return data;
         }
         this.convertDateToString = function (date) {
+            if (date === undefined)
+                return undefined;
             return moment(date).format();
         }
     }
@@ -768,7 +770,9 @@
                 };
                 $scope.optionsStartCalendar = {
                     maxDate: $scope.datePickerPopup.modelEndDate,
-                    showWeeks: false
+                    showWeeks: false,
+                    formatDay: 'dd',
+                    formatMonth: 'MMMM'
                 }
 
                 $scope.optionsEndCalendar = {
@@ -777,7 +781,7 @@
                 }
                 $scope.$watchGroup(['datePickerPopup.modelStartDate', 'datePickerPopup.modelEndDate'],
                     function (newValues) {
-                 
+
                         if ($scope.datePickerPopup.modelStartDate > $scope.datePickerPopup.modelEndDate) {
                             $scope.datePickerPopup.modelStartDate = $scope.datePickerPopup.modelEndDate;
                             newValues[0] = newValues[1];
@@ -862,7 +866,7 @@
             return new Date(date);
         }
         function getHtmlCalendar(openFunction, ngModel, isOpenVarableCondition, options) {
-            return '<div><input type="text" uib-datepicker-popup="shortDate" ng-click="' + openFunction + '" class="form-control" ' +
+            return '<div><input normalize-date type="text" uib-datepicker-popup="shortDate" ng-click="' + openFunction + '" class="form-control" ' +
                     'ng-model="' + ngModel + '" ' +
                     'is-open="' + isOpenVarableCondition + '" show-button-bar="false" datepicker-options="' + options + '"/></div>';
         }
@@ -873,6 +877,7 @@
             return {
                 require: 'ngModel',
                 restrict: 'A',
+                priority: 1,
                 link: function (scope, element, attr, ngModel) {
                     ngModel.$formatters.length = 0;
                     ngModel.$formatters.unshift(function (utcDate) {
@@ -887,32 +892,28 @@
                         var m = ngModel;
                         if (!angular.isDate(new Date(modelValue)))
                             return modelValue;
+                        scope.datePickerPopup.modelStartDate = new Date(modelValue);
                         return new Date(modelValue);
                     });
-                    scope.$watch(function () {
-                        return convertHelper.convertStringToObjectData(scope, attr.doNormalize);
-                    }, function (checkValidate) {
+                    //scope.$watch(function () {
+                    //    return convertHelper.convertStringToObjectData(scope, attr.doNormalize);
+                    //}, function (checkValidate) {
 
-                        if (checkValidate === false)
-                            return;
+                    //    if (checkValidate === false)
+                    //        return;
 
-                        if (ngModel.$modelValue)
-                        ngModel.$modelValue = ngModel.$formatters[0](ngModel.$modelValue);
+                    //    if (ngModel.$modelValue)
+                    //    ngModel.$modelValue = ngModel.$formatters[0](ngModel.$modelValue);
 
-                        //ngModel.$viewValue = filter('formatDate')(modelValue);
-                        //element[0].value = filter('formatDate')(modelValue);
-                    });
+                    //    //ngModel.$viewValue = filter('formatDate')(modelValue);
+                    //    //element[0].value = filter('formatDate')(modelValue);
+                    //});
                     scope.$watch(function () {
                         return ngModel.$viewValue;
                     }, function (modelValue) {
-                        var m = ngModel;
-                        var ifCheckDate = convertHelper.convertStringToObjectData(scope, attr.doNormalize);
-                        if (!angular.isDate(modelValue))
-                            return;
 
-                        ngModel.$modelValue = ngModel.$formatters[0](ngModel.$modelValue);
-
-                        //ngModel.$viewValue = filter('formatDate')(modelValue);
+                        if (angular.isDate(ngModel.$modelValue) && ngModel.$viewValue !== filter('formatDate')(modelValue))
+                            ngModel.$viewValue = filter('formatDate')(modelValue);
                         //element[0].value = filter('formatDate')(modelValue);
                     });
                     //scope.$watch(function () {

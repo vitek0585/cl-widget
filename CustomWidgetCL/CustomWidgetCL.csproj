@@ -158,6 +158,8 @@
     <Content Include="Content\bootstrap.css" />
     <Content Include="Content\bootstrap.min.css" />
     <Content Include="Content\custom.css" />
+    <Content Include="Content\toaster.css" />
+    <Content Include="Content\toastr.css" />
     <Content Include="Content\ui-bootstrap-csp.css" />
     <Content Include="favicon.ico" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
@@ -969,10 +971,14 @@
     <Content Include="Scripts\module\app-module.js" />
     <Content Include="Scripts\module\cr-lab-frid.js" />
     <Content Include="Scripts\module\cr-lab-grid.js" />
+    <Content Include="Scripts\module\errorHandling.js" />
+    <Content Include="Scripts\module\toaster.js" />
     <Content Include="Scripts\moment-with-locales.js" />
     <Content Include="Scripts\moment-with-locales.min.js" />
     <Content Include="Scripts\moment.js" />
     <Content Include="Scripts\moment.min.js" />
+    <Content Include="Content\angular-moment-picker.css" />
+    <Content Include="Scripts\Moment\angular-moment-picker.js" />
     <Content Include="Scripts\respond.js" />
     <Content Include="Scripts\respond.min.js" />
     <Content Include="Scripts\_references.js" />
@@ -991,6 +997,8 @@
     <Content Include="Scripts\version.json" />
     <Content Include="Views\Home\FilterGrid.cshtml" />
     <Content Include="Views\Home\SignalR.cshtml" />
+    <Content Include="Views\Home\MomentDate.cshtml" />
+    <Content Include="Views\Home\Notify.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
