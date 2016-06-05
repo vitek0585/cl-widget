@@ -65,7 +65,7 @@
         $(document).ajaxComplete(responseInterceptor.responseJquery);
     }]);
 
-    // notifier factory initialize
+    // notifier 
     responseHandlingModule.factory("notifier", notifier);
     notifier.$inject = ['toaster', 'responseHandlerConfig'];
     function notifier(toaster, responseHandlerConfig) {
@@ -105,12 +105,8 @@
 
             return {
                 // for angular config 
-                response: function (response) {
-                    angularHandler(response);
-                },
-                responseError: function (response) {
-                    angularHandler(response);
-                },
+                response: angularHandler,
+                responseError: angularHandler,
                 // for jquery ajax config 
                 responseJquery: function (event, xhr) {
                     var headersArray = xhr.getAllResponseHeaders();
