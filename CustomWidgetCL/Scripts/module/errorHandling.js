@@ -1,13 +1,56 @@
-﻿(function () {
+﻿// handlersCollection - add to new handler:
+// 1 - addResponseHandler(statusCodeInit, handleFunc,normalizeResponseData);
+// 2 - addCoveringRangeResponseHandler(statusCodeFrom, statusCodeTo, handleFunc,normalizeResponseData)
+// responseHandlerConfig - set settings for response interceptor and notifier
+// 1 - ignoredStatusCodes (array)
+// 2 - noramlizeResponseData(responseData)
+// 3 - notifySettings(timeOut, animationClass, positionClass, iconClasses) 
+// notifier - show message notifySuccess()
+
+(function () {
     'use strict';
-    var statusCodes = {
-        Unauthorized: 401,
-        InternalServerError: 500,
-        Ok: 200
-    }
 
     var responseHandlingModule = angular.module("responseHandlingApp", ['toaster']);
-    responseHandlingModule.constant('statusCodes', statusCodes);
+
+    //settings 
+    responseHandlingModule.value('responseHandlerConfig', {
+        ignoredStatusCodes: [],
+        getIgnoredStatusCode: function () {
+            return this.ignoredStatusCodes;
+        },
+        noramlizeResponseData: function (responseData) {
+            return responseData;
+        },
+        notifySettings: function (timeOut, positionClass, iconClasses) {
+            return {
+                'limit': 0,
+                'tap-to-dismiss': true,
+                'close-button': false,
+                'close-html': '<button class="toast-close-button" type="button">&times;</button>',
+                'newest-on-top': true,
+                'time-out': timeOut || 3000,
+                'icon-classes': iconClasses || {
+                    error: 'toast-error',
+                    info: 'toast-info',
+                    wait: 'toast-wait',
+                    success: 'toast-success',
+                    warning: 'toast-warning'
+                },
+                'body-output-type': '', // Options: '', 'trustedHtml', 'template', 'templateWithData', 'directive'
+                'body-template': 'toasterBodyTmpl.html',
+                'icon-class': 'toast-info',
+                'position-class': positionClass || 'toast-top-right', // Options (see CSS):
+                // 'toast-top-full-width', 'toast-bottom-full-width', 'toast-center',
+                // 'toast-top-left', 'toast-top-center', 'toast-top-right',
+                // 'toast-bottom-left', 'toast-bottom-center', 'toast-bottom-right',
+                'title-class': 'toast-title',
+                'message-class': 'toast-message',
+                'prevent-duplicates': false,
+                'mouseover-timer-stop': true // stop timeout on mouseover and restart timer on mouseout
+            }
+        }
+    });
+
     // setup angular config 
     responseHandlingModule.config(function ($httpProvider) {
         // add header to all request 
@@ -16,14 +59,24 @@
         // response interceptor
         $httpProvider.interceptors.push('httpResponseInterceptor');
     });
+
     // setup jquery config
     responseHandlingModule.run(['httpResponseInterceptor', function (responseInterceptor) {
         $(document).ajaxComplete(responseInterceptor.responseJquery);
     }]);
+
     // notifier factory initialize
     responseHandlingModule.factory("notifier", notifier);
-    responseHandlingModule.$inject = ['toaster'];
-    function notifier(toaster) {
+    notifier.$inject = ['toaster', 'responseHandlerConfig'];
+    function notifier(toaster, responseHandlerConfig) {
+
+        var notifierElem = "<toaster-container toaster-options=" +
+            "\"" +
+            JSON.stringify(responseHandlerConfig.notifySettings) +
+            "\"></toaster-container>";
+
+        var rootElem = document.querySelector('[ng-app]');
+        angular.element(rootElem).append(notifierElem);
 
         return {
             notifySuccess: notifySuccess,
@@ -35,30 +88,31 @@
             toaster.success(message, title);
         }
 
-        function notifyWarning(message, title) {
-            toaster.warning(message, title);
+        function notifyWarning(message, title, timeout, bodyOutputType, clickHandler, toasterId, showCloseButton, toastId, onHideCallback) {
+            toaster.pop('warning', title, message, timeout, bodyOutputType, clickHandler, toasterId, showCloseButton, toastId, onHideCallback);
         }
 
         function notifyError(message, title) {
             toaster.error(message, title);
         }
     };
-    // response Interceptor
-    responseHandlingModule.factory('httpResponseInterceptor', ['notifier', '$timeout',
-        function (notifier, $timeout) {
 
-            var excludeStatusCodes = [];
-            var handlingOk = new HandlingOk(undefined, notifier);
-            var handlingInternalServerError = new HandlingInternalServerError(handlingOk, notifier);
-            var handlingUnauthorized = new HandlingUnauthorized(handlingInternalServerError);
+    // response Interceptor
+    responseHandlingModule.factory('httpResponseInterceptor', ['$rootScope', 'handlersCollection', 'notifier', 'responseHandlerConfig', '$log',
+        function ($rootScope, handlersCollection, notifier, responseHandlerConfig, $log) {
+
+            var noramlizeResponseData = responseHandlerConfig.noramlizeResponseData;
+
             return {
+                // for angular config 
                 response: function (response) {
                     angularHandler(response);
                 },
                 responseError: function (response) {
                     angularHandler(response);
                 },
-                responseJquery: function (event, xhr, settings) {
+                // for jquery ajax config 
+                responseJquery: function (event, xhr) {
                     var headersArray = xhr.getAllResponseHeaders();
                     var headers = {};
                     headersArray.split('\n').forEach(function (headerString) {
@@ -68,9 +122,8 @@
                         }
                     });
                     var responseData = $.parseJSON(xhr.responseText);
-                    $timeout(function () {
-                        handlingResponse(xhr.status, responseData, headers);
-                    }, 0, true);
+                    handlingResponse(xhr.status, responseData, headers);
+                    $rootScope.$apply();
                 }
             }
 
@@ -79,66 +132,142 @@
                 handlingResponse(response.status, response.data, headers);
                 return response;
             }
-            function handlingResponse(statusCode, responseData, headers) {
 
-                if (isExcludedStatusCode(statusCode))
+            // common handling response
+            function handlingResponse(statusCodeStr, responseData, headers) {
+
+                var statusCode = parseInt(statusCodeStr);
+
+                // stop handler if current status code has been added to ignore
+                if (isIgnoreStatusCode(statusCode))
                     return;
 
-                handlingUnauthorized.handle(statusCode, responseData, headers);
+                var handlers = handlersCollection.getAllHandlers();
+                var handler = getHandlerByStatusCode(handlers, statusCode);
+
+                if (handler) {
+                    var normalizeResponseData = handler.normalizeResponseData ?
+                        handler.normalizeResponseData(responseData) : noramlizeResponseData(responseData);
+                    handler.handle(normalizeResponseData, headers, notifier);
+                }
             }
 
-            // check status code that it has not excluded 
-            function isExcludedStatusCode(currentStatusCode) {
-                return excludeStatusCodes.some(function (statusCode) {
+            // check status code that it has not ignore 
+            function isIgnoreStatusCode(currentStatusCode) {
+                var ingnoredStatusCodes = responseHandlerConfig.getIgnoredStatusCode() || [];
+                return ingnoredStatusCodes.some(function (statusCode) {
                     return currentStatusCode === statusCode;
                 });
             }
+
+            function getHandlerByStatusCode(handlers, statusCode) {
+                var filteredHandlers = handlers.filter(function (handler) { return handler.isCanHandle(statusCode); });
+                if (filteredHandlers.length > 1) {
+                    $log.warn('Status code - ' + statusCode + ' has more than one handler');
+                }
+                return filteredHandlers[0];
+            }
         }]);
-    //
-    function HandlingResponseBase(initializeStatusCode, handleResponseNext, executeHandleFunc) {
-        var statusCode = parseInt(initializeStatusCode);
-        var handleResponse = handleResponseNext;
 
-        this.handle = function (currentStatusCode, responseData, headers) {
-            if (statusCode === currentStatusCode) {
-                executeHandleFunc(responseData, headers);
-            } else if (handleResponse) {
-                handleResponse.handle(currentStatusCode, responseData, headers);
+    // handlers factory 
+    responseHandlingModule.factory('handlersFactory', handlersFactory);
+    function handlersFactory() {
+
+        return {
+            createCoveringRangeHandler: createCoveringRangeHandler,
+            createHandler: createHandler
+        }
+
+        function createCoveringRangeHandler(statusCodeFrom, statusCodeTo, handleFunc, normalizeResponseData) {
+            var createdHandler = createHandlerObject(handleFunc, normalizeResponseData);
+            return angular.extend(createdHandler, {
+                isCanHandle: function (statusCode) {
+                    if (statusCodeFrom <= statusCode && statusCodeTo >= statusCode) {
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+        function createHandler(statusCodeInit, handleFunc, normalizeResponseData) {
+            var createdHandler = createHandlerObject(handleFunc, normalizeResponseData);
+            return angular.extend(createdHandler, {
+                isCanHandle: function (statusCode) {
+                    if (statusCodeInit === statusCode) {
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+
+        function createHandlerObject(handleFunc, normalizeResponseData) {
+            return {
+                handle: handleFunc,
+                normalizeResponseData: normalizeResponseData
             }
         }
     }
 
-    function HandlingUnauthorized(handleResponseNext) {
-        HandlingResponseBase.call(this, statusCodes.Unauthorized, handleResponseNext, executeHandleFunc);
-        var unauthorizedResponseHeader = 'x-responded-json';
-        function executeHandleFunc(responseData, headers) {
+    // handlers collection 
+    responseHandlingModule.factory('handlersCollection', handlersCollection);
+    handlersCollection.$inject = ['handlersFactory'];
+    function handlersCollection(handlersFactory) {
 
-            if (headers[unauthorizedResponseHeader] !== undefined) {
-                var xheader = headers[unauthorizedResponseHeader];
-                var obj = JSON.parse(xheader);
-                var location = obj.headers.location;
-                var index = location.indexOf('?');
-                var currentLocation = location.substring(0, index);
-                document.location = currentLocation;
-            }
+        var statusCodes = {
+            BadRequest: 400,
+            Unauthorized: 401,
+            NotFound: 404,
+            InternalServerError: 500
         }
-    }
 
-    function HandlingInternalServerError(handleResponseNext, notifierInit) {
-        HandlingResponseBase.call(this, statusCodes.InternalServerError, handleResponseNext, executeHandleFunc);
-        var notifier = notifierInit;
+        var handlers = [];
 
-        function executeHandleFunc(responseData) {
-            notifier.notifyError(responseData.message, "500");
+        handlers.push(handlersFactory.createHandler(statusCodes.BadRequest,
+            function (responseData, headers, notifier) {
+                notifier.notifyWarning(responseData);
+            }));
+
+        handlers.push(handlersFactory.createHandler(statusCodes.NotFound,
+            function (responseData, headers, notifier) {
+                notifier.notifyWarning("Current page is not found");
+            }));
+
+        handlers.push(handlersFactory.createHandler(statusCodes.Unauthorized,
+            function (responseData, headers) {
+                var unauthorizedResponseHeader = 'x-responded-json';
+
+                if (headers[unauthorizedResponseHeader] !== undefined) {
+                    var xheader = headers[unauthorizedResponseHeader];
+                    var obj = JSON.parse(xheader);
+                    var location = obj.headers.location;
+                    var index = location.indexOf('?');
+                    var currentLocation = location.substring(0, index);
+                    document.location = currentLocation;
+                }
+            }));
+
+        handlers.push(handlersFactory.createHandler(statusCodes.InternalServerError,
+           function (responseData, headers, notifier) {
+               notifier.notifyError(responseData);
+           }));
+
+        return {
+            addResponseHandler: addResponseHandler,
+            addCoveringRangeResponseHandler: addCoveringRangeResponseHandler,
+            getAllHandlers: getAllHandlers
         }
-    }
 
-    function HandlingOk(handleResponseNext, notifierInit) {
-        HandlingResponseBase.call(this, statusCodes.Ok, handleResponseNext, executeHandleFunc);
-        var notifier = notifierInit;
+        function addResponseHandler(statusCodeInit, handleInit) {
+            handlers.push(handlersFactory.createHandler(statusCodeInit, handleInit));
+        }
 
-        function executeHandleFunc(responseData) {
-            notifier.notifySuccess(responseData.message, statusCodes.Ok);
+        function addCoveringRangeResponseHandler(statusCodeFrom, statusCodeTo, handleInit) {
+            handlers.push(handlersFactory.createCoveringRangeHandler(statusCodeFrom, statusCodeTo, handleInit));
+        }
+
+        function getAllHandlers() {
+            return handlers;
         }
     }
 })();

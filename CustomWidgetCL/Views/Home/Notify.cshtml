@@ -5,7 +5,7 @@
     <button ng-click="rc.getData()">Get data</button>
     <button ng-click="rc.getDataError()">Get data error</button>
     <button ng-click="rc.getDataAuth()">Get data auth</button>
-    <toaster-container toaster-options="{'time-out': 3000, 'close-button':false, 'animation-class': 'toast-top-center'}"></toaster-container>
+    <button ng-click="rc.getDataNotFound()">Get data Not Found</button>
 </div>
 
 @section scripts{
@@ -18,9 +18,9 @@
     <script type="text/javascript">
         var app = angular.module('app', ['responseHandlingApp']);
         app.controller('ctrl', ctrl);
-        ctrl.$inject = ['$http', 'notifier','toaster'];
-        function ctrl(http, notifier, toaster) {
-
+        ctrl.$inject = ['$http', 'notifier', 'toaster', 'responseHandlerConfig'];
+        function ctrl(http, notifier, toaster, responseHandlerConfig) {
+            //responseHandlerConfig.ignoredStatusCodes.push(400);
             var vm = this;
 
             vm.getData = function () {
@@ -41,6 +41,13 @@
                 $.ajax({
                     method: 'Delete',
                     url: '/api/Date'
+                });
+                //http.put('/api/Date');
+            }
+            vm.getDataNotFound = function () {
+                $.ajax({
+                    method: 'Delete',
+                    url: '/api/Date1'
                 });
                 //http.put('/api/Date');
             }

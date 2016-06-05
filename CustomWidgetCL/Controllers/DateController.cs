@@ -20,9 +20,9 @@ namespace CustomWidgetCL.Controllers
             return Ok(obj);
         }
         [HttpPost]
-        public IHttpActionResult Get()
+        public HttpResponseMessage Get()
         {
-            return Json(new { message = "super puper" });
+            return Request.CreateResponse(HttpStatusCode.BadRequest, "super puper");
         }
         public IHttpActionResult Put()
         {
@@ -31,7 +31,7 @@ namespace CustomWidgetCL.Controllers
         [Authorize]
         public IHttpActionResult Delete()
         {
-            return Json(new { message = "Authorize" });
+            return Json("Authorize");
         }
     }
 
