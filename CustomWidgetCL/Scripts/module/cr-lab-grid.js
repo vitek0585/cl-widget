@@ -40,7 +40,9 @@
 
 (function () {
     'use strict';
-    var app = angular.module('gridCredoLab', []);
+
+    var app = angular.module('gridCredoLab', ['ui.bootstrap']);
+
     app.constant('clConfig',
     {
         selectedClass: 'cl-row-selected'
@@ -53,10 +55,13 @@
         return {
 
             registerClGrid: registerClGrid,
-            clGridSelectedItems: clGridSelectedItems
+            selectedRows: selectedRows,
+            selectedRow: selectedRow,
+            //todo: should be private, declare applyFilters() instead
+            getFilterData: getFilterData
         };
 
-        function clGridSelectedItems(idGrid) {
+        function selectedRows(idGrid) {
             var itemsDto = [];
             var data;
             if (angular.isDefined(idGrid) && angular.isDefined(clGrids[idGrid])) {
@@ -69,16 +74,21 @@
             }
 
             return undefined;
-        }
-        function getData(source, dest) {
-            if (angular.isArray(source)) {
-                source.forEach(function (e) {
-                    dest.push(e);
-                });
-                return dest;
+            function getData(source, dest) {
+                if (angular.isArray(source)) {
+                    source.forEach(function (e) {
+                        dest.push(e);
+                    });
+                    return dest;
+                }
+                return source;
             }
-            return source;
         }
+
+        function selectedRow(idGrid) {
+            return selectedRows(idGrid);
+        }
+
         function registerClGrid(idGrid, func) {
 
             if (angular.isDefined(idGrid)) {
@@ -88,18 +98,25 @@
             clGrids[key] = func;
         }
 
+        function getFilterData(id) {
+            var filterData = undefined;
+            if (id === undefined && $('[cl-grid]')[0]) {
+                filterData = angular.element($('[cl-grid]')).scope().getFilterData();
+            } else if (angular.isDefined(id) && $('#' + id)) {
+                filterData = angular.element($('[cl-grid]')).scope().getFilterData();
+            }
+            return filterData;
+        }
     }
     //-----------------------------------Grid directive-------------------------
     app.directive('clGrid', gridExecute);
-    gridExecute.$inject = ['$compile', '$rootScope', 'clGridContainer', 'clConfig'];
-    function gridExecute($compile, $rootScope, gridContainer, clConfig) {
+    gridExecute.$inject = ['$compile', '$rootScope', 'clGridContainer', 'clConfig', 'convertHelper'];
+    function gridExecute($compile, $rootScope, gridContainer, clConfig, convertHelper) {
 
         return {
             restrict: 'A',
             scope: true,
-            compile: function (tElement, tAttrs, tTransclude) {
-                var keyData = tAttrs['data'];
-
+            compile: function (tElement, tAttrs) {
                 if (angular.isDefined(tAttrs.gridTemplate)) {
                     tElement.append($(document.getElementById(tAttrs.gridTemplate))[0].innerHTML);
                 }
@@ -109,19 +126,25 @@
 
                 return {
                     pre: function preLink(scope, iElement, iAttrs) {
-                        scope.keyData = keyData;
-
-                    },
-
+                        scope.keyData = iAttrs['data'];
+                        scope.clData = convertHelper.getDataByKeyObject(scope, scope.keyData);
+                        scope.$watchCollection(function () {
+                            return convertHelper.convertStringToObjectData(scope, scope.keyData);
+                        }, function () {
+                            scope.clData = convertHelper.getDataByKeyObject(scope, scope.keyData);
+                        });
+                    }
                 }
                 function bodyWrap(tElement) {
-                    $(tElement).find('[cl-body]')
-                        .wrapInner('<span cl-element ng-repeat="item in ' + keyData + '"ng-click="select(item,$event)" class="cl-row" ng-class-odd="\'cl-row-odd\'"></span>');
+                    var clElement = angular.element('<span cl-element ng-repeat="item in clData" class="cl-row" ng-class-odd="::\'cl-row-odd\'"></span>');
+                    if (!angular.isDefined(tAttrs.disableSelected))
+                        clElement.attr('ng-click', 'select(item,$event)');
+                    $(tElement).find('[cl-body]').wrapInner(clElement);
                 }
 
                 function setFeatureShowGrid(tElement) {
-                    $(tElement).find('[hide-without-elems]').attr('ng-show', keyData + '[0]');
-                    $(tElement).find('[show-without-elems]').attr('ng-show', '!' + keyData + '[0]');
+                    $(tElement).find('[hide-without-elems]').attr('ng-show', 'clData[0]');
+                    $(tElement).find('[show-without-elems]').attr('ng-show', '!clData[0]');
                 }
 
             },
@@ -131,12 +154,15 @@
             var idGrid = $attrs['id'];
             var isMultiselect = false;
             $scope.idGrid = idGrid;
+            $scope.gridFilterActions = [];
             var selectedItem;
             var currentElement;
 
             var selectedItems = [];
             var currentElements = [];
-
+            this.enableSelected = function () {
+                return !angular.isDefined($attrs.disableSelected);
+            }
             if (angular.isDefined($attrs.multiselect)) {
                 isMultiselect = true;
             }
@@ -148,6 +174,8 @@
                     handleSelect(element, item);
                 }
             };
+            $scope.getFilterData = getFilterData;
+
             if (isMultiselect) {
                 gridContainer.registerClGrid(idGrid, function () {
                     return selectedItems;
@@ -184,48 +212,380 @@
                 }
             }
 
+            //pagination
+            $scope.$on('pagination.selectedPage', function () {
+                if (angular.isDefined($attrs.serverFilterAction)) {
+                    getDataFromServerSide($scope, $attrs);
+                } else {
+                    // todo: local paging
+                }
+            });
+
+            //sorting 
+            $scope.$on('sort.apply', function () {
+                if (angular.isDefined($attrs.serverFilterAction)) {
+                    getDataFromServerSide($scope, $attrs);
+                } else {
+                    getSortScope().sortlocal();
+                }
+            });
+
+            //filter 
+            $scope.$on('filter.apply', function () {
+                if (angular.isDefined($attrs.serverFilterAction)) {
+                    getDataFromServerSide($scope, $attrs);
+                } else {
+                    runLocalFilter($scope);
+                }
+            });
+
+            function getDataFromServerSide($scope, $attrs) {
+                var filterData = getFilterData();
+                var sortData = getSortScope().getSortFields();
+                var currentPage = getPaginationScope().getCurrentPage();
+                console.log(filterData, sortData, currentPage);
+                //$scope[$attrs.serverFilterAction](filterData);
+            }
+
+            function getFilterData() {
+                var filterScopes = getFilterScopes();
+                var filterData = [];
+                for (var i = 0; i < filterScopes.length; i++) {
+                    var dataObject = filterScopes[i].executeServerSideFilter();
+                    if (dataObject !== undefined)
+                        filterData.push(dataObject);
+                }
+                return filterData;
+            }
+
+            function getFilterScopes() {
+                var filterElements = $($element).find('[filter-type]');
+                var filterScopes = [];
+                for (var i = 0; i < filterElements.length; i++) {
+                    filterScopes.push($(filterElements[i]).scope());
+                }
+                return filterScopes;
+            }
+
+            function getSortScope() {
+                return angular.element($($element).find('[cl-header]')).scope();
+            }
+
+            function getPaginationScope() {
+                return angular.element($($element).find('[pagination]')).scope();
+            }
+
+            //local filter
+            function runLocalFilter($scope) {
+                var filterScopes = getFilterScopes();
+                var data = convertHelper.getDataByKeyObject($scope, $scope.keyData);
+                var i;
+                for (i = 0; i < filterScopes.length; i++) {
+                    var executeLocalFilter = filterScopes[i].executeLocalFilter;
+                    data = executeLocalFilter(data);
+                }
+                $scope.clData.length = 0;
+                for (i = 0; i < data.length; i++) {
+                    $scope.clData.push(data[i]);
+                }
+            }
         }
     }
     //----------------------Header directive--------------------------
     app.directive('clHeader', headerExecute);
-    headerExecute.$inject = ['$filter'];
-    function headerExecute($filter) {
+    headerExecute.$inject = ['$filter', '$rootScope'];
+    function headerExecute($filter, $rootScope) {
 
         return {
             require: '^clGrid',
             restrict: "A",
 
             controller: function ($scope, $element, $attrs) {
-                var local = $attrs.local;
-                var sortAction = $attrs.sortAction;
+                var sortedFields = [];
+
                 $scope.$on('cl-sort' + $scope.idGrid, function (event, args) {
-
-                    if (!angular.isDefined(local) || angular.isDefined(local) && JSON.parse(local) === true) {
-                        var path = $scope.keyData.split('.');
-                        var data = $scope[path[0]];
-                        for (var i = 1; i < path.length; i++) {
-                            data = data[path[i]];
-                        }
-                        if (data !== undefined) {
-                            var newData = $filter('orderBy')(data, args.field);
-                            Array.prototype.splice.apply(data, [0, newData.length].concat(newData));
-                        }
-                        $scope.$apply();
-
-                        return;
+                    var indexField = sortedFields.indexOf(args.field.replace('-',''));
+                    if (indexField > -1) {
+                        sortedFields.splice(indexField, 1);
+                    } else {
+                        sortedFields.push(args.field);
                     }
-                    if (angular.isDefined(local) && JSON.parse(local) === false && angular.isDefined(sortAction)) {
-                        $scope[sortAction](args.field);
-                        $scope.$apply();
-                        return;
-                    }
-                    throw Error('If you set attribute "local" to value true, maybe you missed attribute "sort-action" in the cl-header directive');
-
+                    $rootScope.$broadcast('sort.apply', sortedFields);
                 });
 
+                $scope.getSortFields = function () {
+                    return sortedFields;
+                }
+
+                $scope.sortlocal = function () {
+                    var newData = [];
+                    for (var i = 0; i < sortedFields.length; i++) {
+                        newData = $filter('orderBy')($scope.clData, sortedFields[i]);
+                    }
+                    Array.prototype.splice.apply($scope.clData, [0, newData.length].concat(newData));
+                    $scope.$apply();
+                }
             }
 
         }
+    }
+    //----------------------Popup------------------------------
+    app.directive('clPopup', clPopup);
+    clPopup.$inject = ['$compile'];
+    function clPopup($compile) {
+        return {
+            restrict: 'A',
+            //scope: true,
+            compile: function (tElement) {
+
+                var left = $(tElement).position().left;
+                var div = $('<div ng-show="popup" ng-cloak>');
+                div.addClass('popup-box animate-popup');
+                div.css({ 'top': $(tElement).position().top + $(tElement).outerHeight(), 'left': left });
+
+                $(tElement).parent().append(div);
+                $('.popup-box').click(function (event) {
+                    event.stopPropagation();
+                });
+                return {
+                    pre: function (scope, elem, attr) {
+                        scope.popup = false;
+                        $('html').click(function () {
+                            scope.popup = false;
+                            scope.$apply();
+                        });
+
+                        $(elem).click(function () {
+                            scope.popup = !scope.popup;
+                            if (scope.popup === true) {
+                                refreshPosition(elem);
+                            }
+                            scope.$apply();
+                            event.stopPropagation();
+                        });
+
+                        scope.$watch(function () {
+                            return scope[attr.clPopupTemplate];
+                        }, function (newValue) {
+                            var elemContent = angular.element(newValue);
+                            $compile(elemContent)(scope);
+                            $(elem).parent().find('.popup-box').append(elemContent);
+                        });
+
+                        function refreshPosition(tElement) {
+                            var left = $(tElement).position().left;
+                            var div = $(tElement).parent().find('.popup-box');
+                            div.css({ 'top': $(tElement).position().top + $(tElement).outerHeight(), 'left': left });
+                        }
+
+                    }
+                }
+
+            }
+        }
+    }
+    //-----------------------Filter templates-----------------------------
+    app.constant('filterTemplates',
+    {
+        conditionViewTemplate: '<div class="btn-group" uib-dropdown is-open="status.isopen">' +
+            '<button id="single-button" type="button" class="btn btn-default" uib-dropdown-toggle>' +
+                '{{conditionData.name}}' +
+                '<span class="caret float-right"></span>' +
+            '</button>' +
+                '<ul uib-dropdown-menu role="menu" aria-labelledby="single-button">' +
+                    '<li role="menuitem" ng-repeat="condition in conditions" class="pointer dropdown-item">' +
+                        '<p class="form-group" ng-click="onConditionSelected(condition)">{{condition.name}}</p>' +
+                    '</li>' +
+                '</ul>' +
+            '</div>',
+
+        textViewTemplate: '<div ><input type="text" class="form-control" ng-model="filterData"/></div>',
+
+        popupViewTemplate: '<div class="distance-top" ng-show="showAdditionalView">' +
+                    '<label cl-popup class="form-control cl-popup" cl-popup-template="popupContent">{{filterData}}</label>' +
+            '</div>'
+    });
+    //---------------------------Filter directive---------------------------------
+    app.directive('filterType', filterType);
+    filterType.$inject = ['filterTemplates', 'conditionFactory', 'filtersManager', '$timeout', '$rootScope'];
+    function filterType(filterTemplates, conditionFactory, filtersManager, $timeout, $rootScope) {
+        var timer;
+
+        return {
+            restrict: "A",
+            scope: true,
+            compile: function (tElement, tAttrs) {
+
+                if (!angular.isDefined(tAttrs.filterType)) {
+                    throw Error('Filter type is not found');
+                }
+
+                if (!angular.isDefined(tAttrs.field)) {
+                    throw Error('Field for filter data is not found');
+                }
+
+                var type = tAttrs.filterType;
+                var filter = filtersManager.getFilterByTypeByName(type);
+
+                if (filter == undefined) {
+                    throw Error('Filter for type ' + type + ' is not found');
+                }
+
+                var containerDiv = $('<div cl-filter-container>').addClass('filter-container');
+
+                filter.viewTemplates.forEach(function (template) {
+                    if (angular.isFunction(template)) {
+                        $(containerDiv).append(template());
+                    } else {
+                        var view = filterTemplates[template];
+                        if (view !== undefined) {
+                            $(containerDiv).append(view);
+                        } else {
+                            console.log('Template for view ' + template + ' is not found');
+                        }
+                    }
+                });
+
+                $(tElement).wrapInner('<div cl-header-name>');
+                setMaxHeightCaptionsName(tElement);
+                $(tElement).append(containerDiv);
+
+                return {
+                    pre: function inintializeFilter(scope, iElement, iAttrs) {
+
+                        var filter = filtersManager.getFilterByTypeByName(iAttrs.filterType);
+                        if (filter.initialize !== undefined) {
+                            filter.initialize(scope, iAttrs);
+                        }
+                        if (filter.conditions === undefined) {
+                            throw Error('Conditions for type ' + filter.type + ' is not found');
+                        }
+                        if (filter.htmlPopup !== undefined) {
+
+                            scope.popupContent = filter.htmlPopup;
+                            scope.showAdditionalView = false;
+                            scope.filterData = filter.getPopupData(scope);
+                            scope.$watch('popup',
+                                function (newVal) {
+                                    if (newVal === false && scope.showAdditionalView === true) {
+                                        scope.filterData = filter.getPopupData(scope);
+                                    }
+                                });
+                        }
+                        scope.conditions = filter.conditions;
+                        //set name for each condition
+                        if (scope[iAttrs.conditionNames] !== undefined) {
+                            var conditionNames = scope[iAttrs.conditionNames];
+                            for (var i = 0; i < conditionNames.length; i++) {
+                                scope.conditions[i].name = conditionNames[i];
+                            }
+                        }
+                        var selectedCondition = iAttrs['conditionSelected'];
+                        if (selectedCondition !== undefined && angular.isNumber(parseInt(selectedCondition))
+                            && selectedCondition > 0 && selectedCondition < scope.conditions.length) {
+                            scope.conditionData = scope.conditions[selectedCondition];
+                        } else {
+                            scope.conditionData = scope.conditions[0];
+                        }
+                        scope.$on('filter.change', function () {
+                            timer = applyFilter(timer);
+                        });
+                        scope.$watch('conditionData',
+                            function (newValue) {
+                                if (scope.showAdditionalView !== undefined) {
+                                    scope.showAdditionalView = false;
+                                }
+
+                                timer = applyFilter(timer);
+
+                                if (newValue.callBack !== undefined) {
+                                    newValue.callBack(scope);
+                                }
+                                setTimeout(function () {
+                                    calculateCaptionFilterPosition(iElement);
+                                }, 0, false);
+
+                            });
+
+
+                        scope.$watch('filterData',
+                            function () {
+                                timer = applyFilter(timer);
+                            });
+
+                        function applyFilter(timer) {
+                            if (timer !== undefined)
+                                $timeout.cancel(timer);
+                            return $timeout(function () {
+                                $rootScope.$broadcast('filter.apply', null);
+                            }, 500, true);
+                        }
+                    }
+                }
+            },
+            controller: function ($scope, $element, $attrs) {
+                var field = $attrs.field;
+
+                $scope.onConditionSelected = function (condition) {
+                    $scope.conditionData = condition;
+                }
+
+                $scope.executeLocalFilter = function (data) {
+
+                    if ($scope.conditionData.executeLocalFilter == null || $scope.conditionData.executeLocalFilter === undefined)
+                        return data;
+
+                    var newData = [];
+
+                    for (var i = 0; i < data.length; i++) {
+                        if ($scope.conditionData.executeLocalFilter(data[i][field], $scope.filterData, $scope))
+                            newData.push(data[i]);
+                    }
+                    return newData;
+                }
+                $scope.executeServerSideFilter = function () {
+                    if ($scope.conditionData.executeServerSideFilter)
+                        return $scope.conditionData.executeServerSideFilter(field, $scope.filterData, $scope);
+
+                    if ($scope.filterData === undefined || $scope.filterData.length === 0)
+                        return undefined;
+                    var object = {};
+                    addToObjectProperty(object, field, $scope.filterData);
+                    return object;
+                }
+                function addToObjectProperty(object, propertyName, propertyValue) {
+                    return object[propertyName] = propertyValue;
+                }
+            }
+        }
+
+
+
+        function setMaxHeightCaptionsName(tElement) {
+            var maxHeight = getMaxHeight($(tElement).parent(), '[cl-header-name]');
+            $(tElement).parent()
+                .find('[cl-header-name]')
+                .css('height', maxHeight);
+        }
+
+        function calculateCaptionFilterPosition(tElement) {
+            var maxHeight = getMaxHeight($(tElement).parent(), '.filter-container');
+            $('.filter-container').css('height', maxHeight);
+        }
+
+        function getMaxHeight(tElement, selector) {
+            var maxHeight = 0;
+            $('.filter-container').css('height', 'auto');
+
+            $(tElement).find(selector)
+                    .each(function (e, v) {
+                        if (maxHeight < $(v).height()) {
+                            maxHeight = $(v).height();
+                        }
+                    });
+            return maxHeight;
+        }
+
     }
     //----------------------Caption directive-------------------------
     app.directive('clCaption', captionExecute);
@@ -235,14 +595,21 @@
         return {
             require: '^clGrid',
             restrict: "A",
+            scope: true,
+
             controller: function ($scope, $element, $attrs) {
                 var reverse = false;
+                var $captionDiv = $('[cl-header-name]', $element);
                 if (angular.isDefined($attrs.sortable)) {
-                    var sortBtn = angular.element('<i class="ion-ios-arrow-down sort-btn"></i>');
-                    $($element).addClass('sortable');
-                    $element.on('click', function (event) {
+                    var sortBtn = angular.element('<i class="ion-ios-arrow-down sort-btn" cl-sort-button></i>');
+                    $($captionDiv).addClass('sortable');
+                    $captionDiv.on('click', function (event) {
+                        if (!angular.isDefined(event.target.attributes['sortable'] || event.target.attributes['cl-header-name'] || event.target.attributes['cl-filter-container']
+                            || event.target.attributes['cl-sort-button'])) {
+                            return;
+                        };
                         if (!angular.isDefined($attrs.field)) {
-                            throw new Error('The caption not exists a attribute "field", please set attribute and put name of field for sort');
+                            throw new Error('The caption does not contain an attribute "field", please set attribute and specify a name of sort field');
                         }
                         var fields = $attrs.field.split(' ');
                         var aggregate = [];
@@ -258,7 +625,7 @@
                         reverse = !reverse;
                         $rootScope.$broadcast('cl-sort' + $scope.idGrid, { field: aggregate });
                     });
-                    $element.append(sortBtn);
+                    $captionDiv.append(sortBtn);
                 }
 
             }
@@ -271,20 +638,521 @@
         return {
             require: '^clGrid',
             restrict: 'A',
-            controller: function ($scope, $element, $attrs) {
-                
-                $scope.$watch(function () {
-                    return $element.attr('class');
-                }, function (newValue) {
+            link: function ($scope, $element, $attrs, clGridCtrl) {
 
-                    if (newValue.indexOf(clConfig.selectedClass) > 0) {
-                        $($element).find('[selected]').show();
-                    }
-                    else {
-                        $($element).find('[selected]').hide();
-                    }
-                });
+                if (clGridCtrl.enableSelected() === true)
+                    $scope.$watch(function () {
+                        return $element.attr('class');
+                    }, function (newValue) {
+
+                        if (newValue.indexOf(clConfig.selectedClass) > 0) {
+                            $($element).find('[selected]').show();
+                        }
+                        else {
+                            $($element).find('[selected]').hide();
+                        }
+                    });
             }
         }
     }
+    //----------------------Helpers---------------------------------
+    app.service('convertHelper', convertHelper);
+    function convertHelper() {
+        this.getDataByKeyObject = function ($scope, key) {
+
+            if (!key.split) {
+                if (angular.isArray($scope[key])) {
+                    return $scope[key].map(function (item) { return item; });
+                }
+                return $scope[key];
+            }
+
+            var path = key.split('.');
+            var data = $scope[path[0]];
+            for (var i = 1; i < path.length; i++) {
+                data = data[path[i]];
+            }
+            if (angular.isArray(data)) {
+                return data.map(function (item) { return item; });
+            }
+            return data;
+        }
+        this.convertStringToObjectData = function ($scope, key) {
+            if (!key.split) {
+                return $scope[key];
+            }
+            var path = key.split('.');
+            var data = $scope[path[0]];
+            for (var i = 1; i < path.length; i++) {
+                data = data[path[i]];
+            }
+            return data;
+        }
+        this.convertDateToUtc = function (date) {
+            return DateTimeHelper.dateToUtcString(date);// moment(date).utc().format('YYYY-MM-DDTHH:mm:ss.SSS');
+        }
+    }
+    //---------------------Condition Factory ------------------------------
+    app.factory('conditionFactory', conditionFactory);
+    function conditionFactory() {
+
+        return {
+            //callBack - method will be call after choose current condition
+            createConditionForFilter: function (conditionName, executeLocalFilter, executeServerSideFilter, callBack) {
+                return new Condition(conditionName, executeLocalFilter, executeServerSideFilter, callBack);
+            }
+        }
+        function Condition(conditionName, executeLocalFilter, executeServerSideFilter, callBack) {
+
+            return {
+                name: conditionName,
+                executeLocalFilter: executeLocalFilter,
+                callBack: callBack,
+                executeServerSideFilter: executeServerSideFilter
+            }
+        }
+    }
+    //-----------------Filter implementation-------------------------------
+    app.factory('filtersManager', filtersManager);
+    filtersManager.$inject = ['commonFilterTypes'];
+    function filtersManager(commonFilterTypes) {
+        var filters = [];
+        filters = filters.concat(commonFilterTypes);
+        return {
+
+            addFilterType: function (filter) {
+                filters.push(filter);
+            },
+            getFilterByTypeByName: function (typeName) {
+                var flrs = filters.filter(function (filter) {
+                    if (filter.type === typeName)
+                        return true;
+                    return false;
+                });
+                if (flrs[0])
+                    return flrs[0];
+
+                return undefined;
+            }
+        };
+
+    }
+    //--------------------------Common filter----------------------
+    app.factory('commonFilterTypes', commonFilterTypes);
+    commonFilterTypes.$inject = ['conditionFactory', '$filter', 'convertHelper'];
+    function commonFilterTypes(conditionFactory, filter, convertHelper) {
+
+        var filters = [];
+        var currentDate = moment(new Date()).startOf('day').toDate();
+
+        var today = moment(new Date()).startOf('day').toDate();
+        var lastWeek = new Date(currentDate.setDate(currentDate.getDate() - 7));
+        var lastMonth = new Date(currentDate.setMonth(currentDate.getMonth() - 1));
+        var conditionsDate = [
+               conditionFactory.createConditionForFilter('all time', function () { return true; }, function () { return undefined; }),
+               conditionFactory.createConditionForFilter('today',
+                function (date) {
+                    var compareDate = convertStringToDate(date);
+                    return moment(today).startOf('day') === moment(compareDate).startOf('day');
+                }, function () {
+                    return { startCreatedDate: convertHelper.convertDateToUtc(today) };
+                }),
+               conditionFactory.createConditionForFilter('last week',
+                function (date) {
+                    var compareDate = convertStringToDate(date);
+                    return lastWeek < compareDate;
+                }, function () {
+                    return { startCreatedDate: convertHelper.convertDateToUtc(lastWeek) };
+                }),
+                conditionFactory.createConditionForFilter('last month',
+                function (date) {
+                    var compareDate = convertStringToDate(date);
+                    return lastMonth < compareDate;
+                }, function () {
+                    return { startCreatedDate: convertHelper.convertDateToUtc(lastMonth) };
+                }),
+                conditionFactory.createConditionForFilter('custom',
+                function (date, filterData, scope) {
+                    if (filterData === undefined || filterData === null || filterData.length === 0)
+                        return true;
+                    var compareDate = convertStringToDate(date);
+                    return scope.datePickerPopup.modelStartDate < compareDate && scope.datePickerPopup.modelEndDate > compareDate;
+                }, function (field, filterData, scope) {
+                    return {
+                        startCreatedDate: convertHelper.convertDateToUtc(scope.datePickerPopup.modelStartDate),
+                        endCreatedDate: convertHelper.convertDateToUtc(scope.datePickerPopup.modelEndDate)
+                    };
+
+                }, dateAction)];
+
+
+        filters.push({
+            type: 'date',
+            conditions: conditionsDate,
+            viewTemplates: ['conditionViewTemplate', templateDatePickerRange],
+            initialize: function ($scope, attr) {
+                var currentDate = new Date();
+                $scope.datePickerPopup = {
+                    modelStartDate: $scope[attr.minDate] || DateTimeHelper.getStartOfDay(currentDate),
+                    modelEndDate: $scope[attr.maxDate] || DateTimeHelper.getEndOfDay(currentDate),
+                    openCalStart: false,
+                    openCalEnd: false,
+                    openCalStartAction: function () {
+                        this.openCalStart = !this.openCalStart;
+                        this.openCalEnd = false;
+                    },
+                    openCalEndAction: function () {
+                        this.openCalEnd = !this.openCalEnd;
+                        this.openCalStart = false;
+                    }
+                };
+                $scope.optionsStartCalendar = {
+                    maxDate: $scope.datePickerPopup.modelEndDate,
+                    showWeeks: false
+                }
+
+                $scope.optionsEndCalendar = {
+                    minDate: $scope.datePickerPopup.modelStartDate,
+                    showWeeks: false
+                }
+                $scope.$watchGroup(['datePickerPopup.modelStartDate', 'datePickerPopup.modelEndDate'],
+                    function (newValues) {
+                        if ($scope.datePickerPopup.modelStartDate > $scope.datePickerPopup.modelEndDate) {
+                            $scope.datePickerPopup.modelStartDate = $scope.datePickerPopup.modelEndDate;
+                            newValues[0] = newValues[1];
+                        }
+                        if ($scope.datePickerPopup.modelStartDate > today) {
+                            $scope.datePickerPopup.modelStartDate = today;
+                            newValues[0] = today;
+                        }
+
+                        $scope.optionsEndCalendar.minDate = !newValues[0] ? newValues[0] : DateTimeHelper.getStartOfDay(newValues[0]);
+                        $scope.optionsStartCalendar.maxDate = !newValues[0] ? newValues[0] : DateTimeHelper.getEndOfDay(newValues[1]);
+                        $scope.$broadcast('filter.change');
+                    });
+
+                if ($scope[attr.minDate] !== undefined)
+                    $scope.optionsStartCalendar.minDate = $scope[attr.minDate];
+                if ($scope[attr.maxDate] !== undefined)
+                    $scope.optionsEndCalendar.maxDate = $scope[attr.maxDate];
+            }
+        });
+        function templateDatePickerRange() {
+            return '<div ng-show="showAdditionalView" class="container-date-pickers">' + getHtmlCalendar('datePickerPopup.openCalStartAction()', 'datePickerPopup.modelStartDate', 'datePickerPopup.openCalStart', 'optionsStartCalendar') +
+                getHtmlCalendar('datePickerPopup.openCalEndAction()', 'datePickerPopup.modelEndDate', 'datePickerPopup.openCalEnd', 'optionsEndCalendar') + '</div>';
+        }
+        function dateAction(scope) {
+            scope.showAdditionalView = true;
+        }
+        //filter for simple input text
+        var conditionsText = [
+                           conditionFactory.createConditionForFilter('contains',
+                           function (dataText, filterText) {
+                               if (filterText === undefined || filterText === null || filterText.length === 0)
+                                   return true;
+
+                               return dataText.toLowerCase().indexOf(filterText.toLowerCase()) > -1;
+                           })];
+        filters.push({
+            type: 'text',
+            conditions: conditionsText,
+            viewTemplates: ['textViewTemplate']
+
+        });
+        //filter for numbers
+        var conditionsNumber = [
+            conditionFactory.createConditionForFilter('containsInRange',
+                function () {
+                    return true;
+                }, function () {
+                    return undefined;
+                })];
+        //type filter of number is not working yet
+        filters.push({
+            type: 'number',
+            conditions: conditionsNumber,
+            viewTemplates: ['popupViewTemplate'],
+            htmlPopup: '<div class="text-center" >From</div>' +
+                '<p number-picker value="min"></p>' +
+                '<div class="text-center">To</div>' +
+                '<p number-picker value="max"></p>',
+            getPopupData: function () {
+                return 0 + ' - ' + 1;
+            }
+        });
+        return filters;
+        //helpers methods
+        function convertStringToDate(date) {
+            if (angular.isDate(date))
+                return date;
+            return new Date(date);
+        }
+        function getHtmlCalendar(openFunction, ngModel, isOpenVarableCondition, options) {
+            return '<div><input type="text" uib-datepicker-popup="MM/dd/yyyy" ng-click="' + openFunction + '" class="form-control" ' +
+                    'ng-model="' + ngModel + '" ' +
+                    'is-open="' + isOpenVarableCondition + '" show-button-bar="false" datepicker-options="' + options + '"/></div>';
+        }
+    }
+
+    //--------------------------number template
+    app.directive('numberPicker', ['numberPickerService', function (service) {
+        'use strict';
+
+        var config = {
+            min: 0,
+            max: Infinity,
+            step: 1
+
+        },
+          base = {
+              restrict: 'E,A',
+              scope: {
+                  'value': '=',
+                  'min': '@',
+                  'max': '@'
+              }
+          };
+
+        return angular.extend(base, {
+            //check if number
+            link: function (scope) {
+                var opts = service.assignExtend(scope, config);
+                if (!service.checkNumber([opts.min, opts.max, opts.step])) {
+                    throw new Error('some value: (min, max or step) is not a valid number');
+                }
+                scope.id = service.getId();
+
+                //transform string to number
+                service.transform(opts);
+
+                //change current value if min value is bigger
+                if (opts.min > scope.value) {
+                    scope.value = opts.min;
+                }
+                //change current value if max value is small
+                if (opts.max < scope.value) {
+                    scope.value = opts.max;
+                }
+
+                //watch for disabled buttons
+                scope.$watch('value', function (newValue, oldValue) {
+                    var min = opts.min,
+                        max = opts.max;
+
+                    scope.canDown = newValue > min;
+                    scope.canUp = newValue < max;
+                    scope.isMaxValue = !scope.canUp;
+                    scope.isMinValue = !scope.canDown;
+
+                    if ((!service.checkNumber(newValue) || newValue > max || newValue < min) && newValue !== '') {
+                        //set oldValue or min value if oldValue isn't number when newValue isn't a number or newValue more than max or newValue less than min
+                        scope.value = service.checkNumber(oldValue) ? oldValue : opts.min;
+                    }
+                });
+
+            },
+            template: function () {
+                return '<input type=\"text\" ng-model=\"value\" class=\"form-control text-center\" ng-readonly=\"enter\" id=\"{{id}}\">';
+            }
+        });
+    }]);
+    app.service('numberPickerService', function () {
+        'use strict';
+
+        return {
+            index: 0,
+            assignExtend: function (dest, src) {
+                var o = {};
+
+                for (var key in src) {
+                    if (src.hasOwnProperty(key)) {
+                        if (dest[key]) {
+                            o[key] = dest[key];
+                        } else {
+                            o[key] = src[key];
+                            dest[key] = src[key];
+                        }
+                    }
+                }
+                return o;
+            },
+            isNumber: function (value) {
+                var val = Number(value);
+                return !isNaN(val) && val === +value;
+            },
+            toNumber: function (value) {
+                return Number(value);
+            },
+            checkNumber: function (value) {
+                var self = this,
+                  //count no numbers
+                  cnn = 0;
+
+                if (angular.isArray(value)) {
+                    angular.forEach(value, function (v) {
+                        if (!self.isNumber(v)) {
+                            cnn += 1;
+                        }
+                    });
+                    if (cnn > 0) {
+                        return false;
+                    }
+                    return true;
+                }
+                if (!this.isNumber(value)) {
+                    return false;
+                }
+                return true;
+            },
+            transform: function (opts) {
+                for (var key in opts) {
+                    if (opts.hasOwnProperty(key)) {
+                        opts[key] = this.toNumber(opts[key]);
+                    }
+                }
+            },
+            getId: function () {
+                this.index += 1;
+                return 'number-picker-' + this.index;
+            }
+        };
+    });
+
+    //--------------------pagination
+    app.directive("pagination", ['$rootScope', function ($rootScope) {
+        
+        return {
+            restrict: "A",
+            template: "<a ng-repeat='button in buttons track by $index' ng-class='{active:button.isActive}' ng-click='selectPage(button)' ng-show='button.isVisible'>{{button.content}}</>",
+            scope: true,
+            link: function (scope, element, attrs) {
+                var currentNumberPage = 1;
+                scope.buttons = [];
+                var buttons = scope.buttons;
+                var maxButton = 9;
+                for (var i = 0; i < maxButton; i++) {
+                    buttons.push({
+                        content: '',
+                        isActive: false,
+                        isRefreshPagination: true,
+                        isVisible: true,
+                        currentPage: 0
+                    });
+                };
+                var buttonCss = attrs.buttonCss;
+                var buttonCssActive = attrs.buttonCssActive;
+                var middleCountButtons = 3;
+                var leftPrev = '...', rightPrev = '...';
+
+                function generateButtons() {
+
+                    var infoPagination = {
+                        currentNumberOfButton: currentNumberPage - 2 > 3 ? currentNumberPage - 2 : 1,
+                        currentButtonIndex: 0
+                    };
+
+                    resetDataButtons(buttons);
+                    generateLeftSide(buttons, infoPagination);
+                    middleButtonGenerate(buttons, infoPagination, currentNumberPage);
+                    rightButtonGenerate(buttons, infoPagination);
+                    hideButtons(buttons, infoPagination.currentButtonIndex);
+
+                    function setupSettingsButton(button, currentPage, content) {
+                        button.currentPage = currentPage;
+                        button.content = content;
+                    }
+
+                    // reset data button
+                    function resetDataButtons(buttons) {
+                        buttons.forEach(function (button) {
+                            button.cssClass = buttonCss;
+                            button.isRefreshPagination = true;
+                            button.isVisible = true;
+                            button.isActive = false;
+                        });
+                    }
+
+                    // left side
+                    function generateLeftSide(buttons, infoPagination) {
+
+                        if (infoPagination.currentNumberOfButton > 2 && scope.totalPages > 0) {
+                            var button = buttons[infoPagination.currentButtonIndex++];
+                            setupSettingsButton(button, 1, 1);
+                            button = buttons[infoPagination.currentButtonIndex++];
+                            setupSettingsButton(button, infoPagination.currentNumberOfButton, leftPrev);
+                        }
+                    };
+
+                    // middle side
+                    function middleButtonGenerate(buttons, infoPagination, currentPage) {
+
+                        for (; infoPagination.currentNumberOfButton < currentPage + middleCountButtons && infoPagination.currentNumberOfButton <= scope.totalPages;
+                            infoPagination.currentButtonIndex++, infoPagination.currentNumberOfButton++) {
+                            var button = buttons[infoPagination.currentButtonIndex];
+
+                            if (infoPagination.currentNumberOfButton === currentPage) {
+                                button.cssClass = buttonCssActive;
+                                button.isActive = true;
+                                button.isRefreshPagination = false;
+
+                                if (infoPagination.currentButtonIndex - 1 >= 0)
+                                    buttons[infoPagination.currentButtonIndex - 1].isRefreshPagination = false;
+                                if (infoPagination.currentButtonIndex + 1 < buttons.length)
+                                    buttons[infoPagination.currentButtonIndex + 1].isRefreshPagination = false;
+                            }
+                            setupSettingsButton(button, infoPagination.currentNumberOfButton, infoPagination.currentNumberOfButton);
+                        }
+                    }
+                    // right side
+                    function rightButtonGenerate(buttons, infoPagination) {
+                        if (infoPagination.currentNumberOfButton + 2 <= scope.totalPages) {
+                            setupSettingsButton(buttons[infoPagination.currentButtonIndex++], infoPagination.currentNumberOfButton, rightPrev);
+                            setupSettingsButton(buttons[infoPagination.currentButtonIndex++], scope.totalPages, scope.totalPages);
+
+                        } else {
+                            while (infoPagination.currentNumberOfButton <= scope.totalPages) {
+                                var button = buttons[infoPagination.currentButtonIndex++];
+                                setupSettingsButton(button, infoPagination.currentNumberOfButton, infoPagination.currentNumberOfButton);
+                                infoPagination.currentNumberOfButton++;
+                            }
+                        }
+                    }
+                    function hideButtons(buttons, startIndex) {
+                        while (startIndex < buttons.length) {
+                            buttons[startIndex++].isVisible = false;
+                        }
+                    }
+                }
+
+                scope.$watch(function () {
+                    if (scope.clData)
+                        return scope.clData.length;
+                    return undefined;
+                }, function (totalPages) {
+                    if (totalPages != undefined) {
+                        currentNumberPage = 1;
+                        generateButtons();
+                    }
+                });
+
+                scope.selectPage = function (button) {
+                    if (currentNumberPage === button.currentPage)
+                        return;
+                    buttons.forEach(function (button) {
+                        button.isActive = false;
+                    });
+                    currentNumberPage = button.currentPage;
+                    button.isActive = true;
+                    if (button.isRefreshPagination)
+                        generateButtons(button);
+
+                    $rootScope.$broadcast('pagination.selectedPage');
+                }
+
+                scope.getCurrentPage = function () {
+                    return currentNumberPage;
+                };
+            }
+        }
+    }]);
 })();

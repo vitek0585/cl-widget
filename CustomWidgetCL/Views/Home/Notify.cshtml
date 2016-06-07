@@ -6,6 +6,18 @@
     <button ng-click="rc.getDataError()">Get data error</button>
     <button ng-click="rc.getDataAuth()">Get data auth</button>
     <button ng-click="rc.getDataNotFound()">Get data Not Found</button>
+
+    <div paging>
+
+    </div>
+
+    <script type="text/ng-template" id="paging">
+        <a ng-click="firstPage()"><<</a>
+        <a ng-click="prevPage()"><</a>
+        <input paging-number type="text" ng-model="page" max-page="totalPages" min-page="1" />
+        <a ng-click="nextPage()">></a>
+        <a ng-click="lastPage()">>></a>
+    </script>
 </div>
 
 @section scripts{
@@ -17,15 +29,91 @@
 
     <script type="text/javascript">
         var app = angular.module('app', ['responseHandlingApp']);
+        app.directive('pagingNumber', pagingNumber);
+
+        function pagingNumber() {
+
+            return {
+                restrict: 'A',
+                require: 'ngModel',
+                scope: {
+                    maxPage: '=',
+                },
+                link: function (scope, element, attrs, ngModel) {
+
+                    scope.$watch(function () {
+                        return ngModel.$modelValue;
+                    }, setValidValue);
+
+                    element.bind('blur', function () {
+                        if (ngModel.$modelValue.length === 0) {
+                            setModelValue(1);
+                            scope.$apply();
+                        }
+                    });
+
+                    function setValidValue(newValue, oldValue) {
+
+                        if (angular.isUndefined(newValue) ||
+                            !angular.isNumber(newValue) && newValue.replace(/[^0-9]/g, '') !== newValue ||
+                            !angular.isNumber(newValue) && newValue.replace(/^0/g, '') !== newValue) {
+
+                            setModelValue(isNaN(oldValue) ? 1 : oldValue);
+                        }
+
+                        if (scope.maxPage < parseInt(newValue, 10)) {
+                            setModelValue(scope.maxPage);
+                        }
+
+                        if (0 >= parseInt(newValue, 10)) {
+                            setModelValue(1);
+                        }
+                    }
+
+                    function setModelValue(value) {
+                        ngModel.$setViewValue(value);
+                        ngModel.$render();
+                    }
+                }
+            }
+        }
+
+        app.directive('paging', paging);
+        function paging() {
+
+            return {
+                restrict: 'A',
+                scope: true,
+                templateUrl: 'paging',
+                controller: function ($scope) {
+                    $scope.page = 1;
+                    $scope.totalPages = 100;
+                    $scope.prevPage = function () {
+                        $scope.page--;
+                    }
+                    $scope.nextPage = function () {
+                        $scope.page++;
+                    }
+                    $scope.lastPage = function () {
+                        $scope.page = $scope.totalPages;
+                    }
+                    $scope.firstPage = function () {
+                        $scope.page = 1;
+                    }
+                }
+            }
+        }
+
         app.controller('ctrl', ctrl);
         ctrl.$inject = ['$http', 'notifier', 'toaster', 'responseHandlerConfig'];
+
         function ctrl(http, notifier, toaster, responseHandlerConfig) {
             //responseHandlerConfig.ignoredStatusCodes.push(400);
             var vm = this;
 
             vm.getData = function () {
                 $.ajax({
-                    method:'POST',
+                    method: 'POST',
                     url: '/api/Date'
                 });
                 //http.post('/api/Date');
