@@ -35,7 +35,7 @@ namespace CustomWidgetCL
                 HttpResponseMessage response = new HttpResponseMessage
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Content =new StringContent(JsonConvert.SerializeObject("internak server"))
+                    Content =new StringContent(JsonConvert.SerializeObject(actionExecutedContext.Exception.Message))
                 };
                 actionExecutedContext.Response = response;
             }

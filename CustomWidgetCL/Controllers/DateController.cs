@@ -7,32 +7,46 @@ using System.Net.Http;
 using System.Threading;
 using System.Web.Http;
 using System.Web.Http.Controllers;
-using System.Web.Http.Filters;
+using System.Web.Http.ModelBinding;
+using ActionFilterAttribute = System.Web.Http.Filters.ActionFilterAttribute;
 
 namespace CustomWidgetCL.Controllers
 {
     public class DateController : ApiController
     {
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         [Localization]
         public IHttpActionResult FormatDate([FromUri]MyClass obj)
         {
             return Ok(obj);
         }
-        [HttpPost]
-        public HttpResponseMessage Get()
+        [System.Web.Http.HttpPost]
+        public IHttpActionResult Get([ModelBinder(typeof(ModelBinderCustom<Child>))]Parent parent)
         {
-            return Request.CreateResponse(HttpStatusCode.BadRequest, "super puper");
+            return Json(parent);
         }
-        public IHttpActionResult Put()
+        //
+        public IHttpActionResult Put(Parent parent)
         {
-            throw new Exception("eeeee");
+            return Json(parent);
         }
-        [Authorize]
+        [System.Web.Http.Authorize]
         public IHttpActionResult Delete()
         {
             return Json("Authorize");
         }
+    }
+    public class Parent
+    {
+        public int Id { get; set; }
+        public Child Child { get; set; }
+        public ConsoleColor Color { get; set; }
+    }
+    [FromUri]
+    public class Child
+    {
+        public string Name { get; set; }
+        public DateTime Date { get; set; }
     }
 
     class LocalizationAttribute : ActionFilterAttribute

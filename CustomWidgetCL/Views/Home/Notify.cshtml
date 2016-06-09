@@ -1,7 +1,7 @@
 ﻿@{
     ViewBag.Title = "Notify";
 }
-<div ng-app="app" ng-controller="ctrl as rc">
+<div id="app" ng-app  ng-controller="ctrl as rc">
     <button ng-click="rc.getData()">Get data</button>
     <button ng-click="rc.getDataError()">Get data error</button>
     <button ng-click="rc.getDataAuth()">Get data auth</button>
@@ -19,13 +19,23 @@
         <a ng-click="lastPage()">>></a>
     </script>
 </div>
+<script src="//cdnjs.cloudflare.com/ajax/libs/es5-shim/4.0.5/es5-shim.min.js"></script>
+<script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+<style>
+    .ng-hide {
+        display: none !important;
+    }
+</style>
 
 @section scripts{
+      
+
+
     <link href="~/Content/bootstrap.css" rel="stylesheet" />
     <link href="~/Content/toaster.css" rel="stylesheet" />
     <script src="~/Scripts/angular.js"></script>
-    <script src="~/Scripts/module/toaster.js"></script>
-    <script src="~/Scripts/module/errorHandling.js"></script>
+    @*<script src="~/Scripts/module/toaster.js"></script>*@
+    @*<script src="~/Scripts/module/errorHandling.js"></script>*@
 
     <script type="text/javascript">
         var app = angular.module('app', ['responseHandlingApp']);
